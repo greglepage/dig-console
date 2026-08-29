@@ -375,6 +375,10 @@
     font-family: "IBM Plex Mono", monospace;
     word-break: break-all;
   }
+  table.records .value.other-name {
+    color: var(--muted);
+    font-weight: 400;
+  }
   table.records .ttl {
     font-family: "IBM Plex Mono", monospace;
     color: var(--muted);
@@ -580,6 +584,7 @@
       </div>
 
       <pre class="raw" id="view-raw" style="display:none;"></pre>
+      <div class="note" id="lookup-note"></div>
     </div>
   </div>
 
@@ -713,6 +718,7 @@
     title.textContent = domain + ' — ' + (type === 'COMMON' ? 'all common types' : type === 'ALL' ? 'every record type' : type);
     clear(tbody);
     raw.textContent = '';
+    document.getElementById('lookup-note').textContent = '';
 
     try {
       var res = await fetch('/api/lookup?domain=' + encodeURIComponent(domain) + '&types=' + encodeURIComponent(type));
@@ -732,14 +738,22 @@
         tr.appendChild(td);
         tbody.appendChild(tr);
       }
+      var hasOtherNames = false;
       data.records.forEach(function (r) {
+        var isApex = r.name.toLowerCase() === domain.toLowerCase();
+        if (!isApex) hasOtherNames = true;
         var tr = el('tr');
-        tr.appendChild(el('td', { cls: 'value', text: r.name }));
+        tr.appendChild(el('td', { cls: isApex ? 'value' : 'value other-name', text: r.name }));
         tr.appendChild(el('td', { cls: 'type', text: r.type }));
         tr.appendChild(el('td', { cls: 'ttl', text: r.ttl }));
         tr.appendChild(el('td', { cls: 'value', text: r.data }));
         tbody.appendChild(tr);
       });
+
+      var note = document.getElementById('lookup-note');
+      note.textContent = (type === 'ALL' && hasOtherNames)
+        ? 'Rows dimmed in the Name column belong to a related name (like _dmarc or a DKIM selector), not ' + domain + ' itself — a single-type lookup for one of those types (e.g. the CNAME chip) only checks ' + domain + ' exactly, so it can show 0 even when ALL found one here.'
+        : '';
 
       var header = '; <<>> dig +noall +answer ' + domain + ' ' + type + '\n';
       var lines = data.records.map(function (r) {
