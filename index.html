@@ -1,0 +1,696 @@
+<title>dig console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #12181F;
+    --paper: #E9EDF0;
+    --surface: #FFFFFF;
+    --surface-2: #F2F4F6;
+    --line: #D2D9DE;
+    --muted: #5C6772;
+    --signal: #146F67;
+    --signal-ink: #0E524C;
+    --good: #1F8A4C;
+    --good-bg: #E4F5EA;
+    --warn: #9C6410;
+    --warn-bg: #FBF0DC;
+    --bad: #B7324A;
+    --bad-bg: #FBE6EA;
+    --shadow: 0 1px 2px rgba(18,24,31,0.06), 0 8px 24px -12px rgba(18,24,31,0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #E6EAED;
+      --paper: #0F1418;
+      --surface: #171D22;
+      --surface-2: #1D242A;
+      --line: #2B333A;
+      --muted: #8B98A2;
+      --signal: #3FC2B6;
+      --signal-ink: #7FDBD2;
+      --good: #46C97D;
+      --good-bg: #143224;
+      --warn: #E2A83F;
+      --warn-bg: #362A11;
+      --bad: #F0667E;
+      --bad-bg: #3A1A22;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #E6EAED;
+    --paper: #0F1418;
+    --surface: #171D22;
+    --surface-2: #1D242A;
+    --line: #2B333A;
+    --muted: #8B98A2;
+    --signal: #3FC2B6;
+    --signal-ink: #7FDBD2;
+    --good: #46C97D;
+    --good-bg: #143224;
+    --warn: #E2A83F;
+    --warn-bg: #362A11;
+    --bad: #F0667E;
+    --bad-bg: #3A1A22;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+  ::selection { background: var(--signal); color: var(--surface); }
+
+  a { color: var(--signal-ink); }
+
+  .mono {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .shell {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 24px 64px;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .wordmark {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .wordmark .mark {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .wordmark .mark::after {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--signal);
+    border-radius: 1px;
+    margin-left: 3px;
+    vertical-align: middle;
+    animation: blink 1.4s steps(2, jump-none) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wordmark .mark::after { animation: none; }
+  }
+  @keyframes blink { 0%, 45% { opacity: 1; } 50%, 95% { opacity: 0; } 100% { opacity: 1; } }
+  .wordmark .tag {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .topbar-right {
+    color: var(--muted);
+    font-size: 12.5px;
+    text-align: right;
+    line-height: 1.5;
+  }
+  .topbar-right .host {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--ink);
+  }
+
+  /* ---------- command bar ---------- */
+  .command {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .command-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .prompt-glyph {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--signal);
+    font-weight: 600;
+    font-size: 16px;
+    flex: none;
+  }
+  .command-input {
+    flex: 1;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 16px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    outline: none;
+    min-width: 0;
+  }
+  .command-input::placeholder { color: var(--muted); }
+  .run-btn {
+    flex: none;
+    background: var(--signal);
+    color: var(--surface);
+    border: none;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    padding: 9px 16px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .run-btn:hover { filter: brightness(0.94); }
+  .run-btn:focus-visible, .chip:focus-visible, .tab:focus-visible, .toggle button:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .chip {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--muted);
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--signal-ink);
+    background: color-mix(in srgb, var(--signal) 16%, var(--surface));
+    border-color: var(--signal);
+    color: var(--signal-ink);
+    font-weight: 600;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 22px;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  .tab {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
+    background: none;
+    border: none;
+    padding: 10px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--signal);
+    font-weight: 600;
+  }
+
+  .panel { display: none; margin-top: 20px; }
+  .panel.active { display: block; }
+
+  /* ---------- status rail ---------- */
+  .rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: 999px;
+  }
+  .pill::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .pill.good { background: var(--good-bg); color: var(--good); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad  { background: var(--bad-bg);  color: var(--bad); }
+
+  /* ---------- card ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card + .card { margin-top: 14px; }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .card-head h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  .toggle {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .toggle button {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--muted);
+    border: none;
+    padding: 6px 11px;
+    cursor: pointer;
+  }
+  .toggle button + button { border-left: 1px solid var(--line); }
+  .toggle button.active { background: var(--signal); color: var(--surface); }
+
+  /* ---------- record table ---------- */
+  table.records {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  table.records th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.records td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.records tr:last-child td { border-bottom: none; }
+  table.records .type {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    color: var(--signal-ink);
+    white-space: nowrap;
+  }
+  table.records .value {
+    font-family: "IBM Plex Mono", monospace;
+    word-break: break-all;
+  }
+  table.records .ttl {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .table-scroll { overflow-x: auto; }
+
+  pre.raw {
+    margin: 0;
+    padding: 16px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+  pre.raw .c { color: var(--muted); }
+  pre.raw .t { color: var(--signal-ink); }
+
+  /* ---------- propagation grid ---------- */
+  .resolver-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+  }
+  .resolver {
+    background: var(--surface);
+    padding: 14px 16px;
+  }
+  .resolver-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .resolver-head .name { font-size: 13px; font-weight: 600; }
+  .resolver-head .ip { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
+  .resolver ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .resolver li { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; }
+  @media (max-width: 640px) {
+    .resolver-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- email health ---------- */
+  .check-list { display: flex; flex-direction: column; }
+  .check {
+    display: grid;
+    grid-template-columns: 22px 100px 1fr;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    align-items: start;
+  }
+  .check:last-child { border-bottom: none; }
+  .check-icon {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 1px;
+  }
+  .check-icon.good { background: var(--good-bg); color: var(--good); }
+  .check-icon.warn { background: var(--warn-bg); color: var(--warn); }
+  .check-label { font-weight: 600; font-size: 13.5px; padding-top: 1px; }
+  .check-body p { margin: 0 0 6px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .check-body p:last-child { margin-bottom: 0; }
+  .check-body code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    padding: 1.5px 5px;
+    border-radius: 4px;
+    word-break: break-all;
+  }
+  @media (max-width: 640px) {
+    .check { grid-template-columns: 22px 1fr; }
+    .check-label { grid-column: 2; }
+    .check-body { grid-column: 2; }
+  }
+
+  .note {
+    font-size: 12.5px;
+    color: var(--muted);
+    padding: 12px 16px;
+    line-height: 1.6;
+  }
+
+  /* ---------- roadmap strip ---------- */
+  .roadmap {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+  }
+  .roadmap-head {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .roadmap-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .roadmap-item {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .roadmap-item b {
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+  @media (max-width: 700px) {
+    .roadmap-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  footer {
+    margin-top: 34px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+
+<div class="shell">
+
+  <div class="topbar">
+    <div class="wordmark">
+      <span class="mark">dig</span>
+      <span class="tag">DNS &amp; email diagnostics, run against every major resolver at once</span>
+    </div>
+    <div class="topbar-right">
+      draft layout — no backend wired yet<br>
+      <span class="host">dig.greglepage.com</span>
+    </div>
+  </div>
+
+  <div class="command">
+    <div class="command-row">
+      <span class="prompt-glyph">&gt;</span>
+      <input class="command-input mono" value="greglepage.com" spellcheck="false">
+      <button class="run-btn">Run lookup</button>
+    </div>
+    <div class="chip-row">
+      <button class="chip active">ALL COMMON</button>
+      <button class="chip">A</button>
+      <button class="chip">AAAA</button>
+      <button class="chip">CNAME</button>
+      <button class="chip">MX</button>
+      <button class="chip">TXT</button>
+      <button class="chip">NS</button>
+      <button class="chip">SOA</button>
+      <button class="chip">SRV</button>
+      <button class="chip">CAA</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-panel="lookup">Lookup</button>
+    <button class="tab" data-panel="propagation">Propagation</button>
+    <button class="tab" data-panel="email">Email health</button>
+    <button class="tab" data-panel="reverse">Reverse DNS</button>
+  </div>
+
+  <!-- ===================== LOOKUP ===================== -->
+  <div class="panel active" id="panel-lookup">
+    <div class="rail">
+      <span class="pill good">8 records found</span>
+      <span class="pill good">Cloudflare-authoritative</span>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>greglepage.com — all common types</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Table</button>
+          <button data-view="raw">Raw dig</button>
+        </div>
+      </div>
+
+      <div class="table-scroll" id="view-table">
+        <table class="records">
+          <thead>
+            <tr><th>Type</th><th>TTL</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="type">A</td><td class="ttl">300</td><td class="value">172.67.150.249</td></tr>
+            <tr><td class="type">A</td><td class="ttl">300</td><td class="value">104.21.0.130</td></tr>
+            <tr><td class="type">AAAA</td><td class="ttl">300</td><td class="value">2606:4700:3033::ac43:96f9</td></tr>
+            <tr><td class="type">AAAA</td><td class="ttl">300</td><td class="value">2606:4700:3031::6815:82</td></tr>
+            <tr><td class="type">MX</td><td class="ttl">300</td><td class="value">10 mx1.simplelogin.co</td></tr>
+            <tr><td class="type">MX</td><td class="ttl">300</td><td class="value">20 mx2.simplelogin.co</td></tr>
+            <tr><td class="type">NS</td><td class="ttl">86400</td><td class="value">margot.ns.cloudflare.com</td></tr>
+            <tr><td class="type">NS</td><td class="ttl">86400</td><td class="value">piotr.ns.cloudflare.com</td></tr>
+            <tr><td class="type">TXT</td><td class="ttl">300</td><td class="value">v=spf1 include:simplelogin.co include:_spf.protonmail.ch ~all</td></tr>
+            <tr><td class="type">SOA</td><td class="ttl">1800</td><td class="value">margot.ns.cloudflare.com dns.cloudflare.com 2413466157 10000 2400 604800 1800</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <pre class="raw" id="view-raw" style="display:none;"><span class="c">; &lt;&lt;&gt;&gt; dig +noall +answer greglepage.com ANY</span>
+greglepage.com.        300   IN  <span class="t">A</span>      172.67.150.249
+greglepage.com.        300   IN  <span class="t">A</span>      104.21.0.130
+greglepage.com.        300   IN  <span class="t">AAAA</span>   2606:4700:3033::ac43:96f9
+greglepage.com.        300   IN  <span class="t">AAAA</span>   2606:4700:3031::6815:82
+greglepage.com.        300   IN  <span class="t">MX</span>     10 mx1.simplelogin.co.
+greglepage.com.        300   IN  <span class="t">MX</span>     20 mx2.simplelogin.co.
+greglepage.com.        86400 IN  <span class="t">NS</span>     margot.ns.cloudflare.com.
+greglepage.com.        86400 IN  <span class="t">NS</span>     piotr.ns.cloudflare.com.
+greglepage.com.        300   IN  <span class="t">TXT</span>    "v=spf1 include:simplelogin.co include:_spf.protonmail.ch ~all"
+greglepage.com.        1800  IN  <span class="t">SOA</span>    margot.ns.cloudflare.com. dns.cloudflare.com. 2413466157 10000 2400 604800 1800</pre>
+    </div>
+  </div>
+
+  <!-- ===================== PROPAGATION ===================== -->
+  <div class="panel" id="panel-propagation">
+    <div class="rail">
+      <span class="pill good">In sync across all 3 resolvers</span>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>greglepage.com — A record, queried simultaneously</h3>
+      </div>
+      <div class="resolver-grid">
+        <div class="resolver">
+          <div class="resolver-head"><span class="name">Cloudflare</span><span class="ip">1.1.1.1</span></div>
+          <ul><li>172.67.150.249</li><li>104.21.0.130</li></ul>
+        </div>
+        <div class="resolver">
+          <div class="resolver-head"><span class="name">Google</span><span class="ip">8.8.8.8</span></div>
+          <ul><li>172.67.150.249</li><li>104.21.0.130</li></ul>
+        </div>
+        <div class="resolver">
+          <div class="resolver-head"><span class="name">Quad9</span><span class="ip">9.9.9.9</span></div>
+          <ul><li>172.67.150.249</li><li>104.21.0.130</li></ul>
+        </div>
+      </div>
+      <div class="note">All three resolvers returned identical answers — this change (or this steady-state record) has fully propagated. When resolvers disagree, this row highlights amber and the mismatched values are called out directly.</div>
+    </div>
+  </div>
+
+  <!-- ===================== EMAIL HEALTH ===================== -->
+  <div class="panel" id="panel-email">
+    <div class="rail">
+      <span class="pill good">SPF pass</span>
+      <span class="pill good">DKIM pass — 3 selectors</span>
+      <span class="pill warn">DMARC — no reporting configured</span>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>greglepage.com — email deliverability</h3></div>
+      <div class="check-list">
+        <div class="check">
+          <span class="check-icon good">✓</span>
+          <span class="check-label">SPF</span>
+          <div class="check-body">
+            <p>One record, ends in a soft fail — well-formed.</p>
+            <p><code>v=spf1 include:simplelogin.co include:_spf.protonmail.ch ~all</code></p>
+          </div>
+        </div>
+        <div class="check">
+          <span class="check-icon good">✓</span>
+          <span class="check-label">DKIM</span>
+          <div class="check-body">
+            <p>3 Proton Mail selectors found and correctly delegated:</p>
+            <p><code>protonmail._domainkey</code> · <code>protonmail2._domainkey</code> · <code>protonmail3._domainkey</code> → <code>domains.proton.ch</code></p>
+          </div>
+        </div>
+        <div class="check">
+          <span class="check-icon warn">!</span>
+          <span class="check-label">DMARC</span>
+          <div class="check-body">
+            <p>Policy is enforcing (<code>p=quarantine</code>), but there's no <code>rua=</code> tag — so failures are being acted on but never reported back to you.</p>
+            <p><code>v=DMARC1; p=quarantine</code></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== REVERSE DNS ===================== -->
+  <div class="panel" id="panel-reverse">
+    <div class="rail">
+      <span class="pill warn">No PTR record</span>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>172.67.150.249 → PTR</h3></div>
+      <div class="table-scroll">
+        <table class="records">
+          <thead><tr><th>Query</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td class="type">PTR</td><td class="value">NXDOMAIN — no reverse record configured</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">Expected here: this IP is a shared Cloudflare edge address, not a dedicated mail or app host, so there's nothing for the anycast network to point back to. A missing PTR only matters when the IP in question is sending mail directly.</div>
+    </div>
+  </div>
+
+  <div class="roadmap">
+    <div class="roadmap-head">Scoped, not yet built</div>
+    <div class="roadmap-grid">
+      <div class="roadmap-item"><b>WHOIS</b>registrar &amp; expiry date, so renewals stop sneaking up on you</div>
+      <div class="roadmap-item"><b>SSL / TLS</b>cert expiry and chain, checked alongside the DNS</div>
+      <div class="roadmap-item"><b>DNSSEC</b>walks the chain of trust, flags where it breaks</div>
+      <div class="roadmap-item"><b>Bulk / CSV</b>same check run against a whole client list at once</div>
+    </div>
+  </div>
+
+  <footer>Layout draft for dig.greglepage.com — every value shown above is a real, live lookup against greglepage.com. Nothing here is wired to a backend yet.</footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chip.parentElement.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.toggle').forEach(function (toggle) {
+    toggle.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        toggle.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        var table = document.getElementById('view-table');
+        var raw = document.getElementById('view-raw');
+        if (btn.dataset.view === 'raw') { table.style.display = 'none'; raw.style.display = 'block'; }
+        else { table.style.display = ''; raw.style.display = 'none'; }
+      });
+    });
+  });
+</script>
