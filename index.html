@@ -264,6 +264,15 @@
   .pill.good { background: var(--good-bg); color: var(--good); }
   .pill.warn { background: var(--warn-bg); color: var(--warn); }
   .pill.bad  { background: var(--bad-bg);  color: var(--bad); }
+  .pill.loading { background: var(--surface-2); color: var(--muted); }
+  .pill.loading::before { animation: blink 1s steps(2, jump-none) infinite; }
+
+  .empty-row td {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 16px;
+  }
+  .run-btn[disabled] { opacity: 0.6; cursor: default; }
 
   /* ---------- card ---------- */
   .card {
@@ -484,7 +493,7 @@
       <span class="tag">DNS &amp; email diagnostics, run against every major resolver at once</span>
     </div>
     <div class="topbar-right">
-      draft layout — no backend wired yet<br>
+      live queries, run at request time<br>
       <span class="host">dig.greglepage.com</span>
     </div>
   </div>
@@ -492,20 +501,20 @@
   <div class="command">
     <div class="command-row">
       <span class="prompt-glyph">&gt;</span>
-      <input class="command-input mono" value="greglepage.com" spellcheck="false">
-      <button class="run-btn">Run lookup</button>
+      <input class="command-input mono" id="domain-input" value="greglepage.com" spellcheck="false" autocomplete="off">
+      <button class="run-btn" id="run-btn">Run lookup</button>
     </div>
-    <div class="chip-row">
-      <button class="chip active">ALL COMMON</button>
-      <button class="chip">A</button>
-      <button class="chip">AAAA</button>
-      <button class="chip">CNAME</button>
-      <button class="chip">MX</button>
-      <button class="chip">TXT</button>
-      <button class="chip">NS</button>
-      <button class="chip">SOA</button>
-      <button class="chip">SRV</button>
-      <button class="chip">CAA</button>
+    <div class="chip-row" id="type-chips">
+      <button class="chip active" data-type="ALL">ALL COMMON</button>
+      <button class="chip" data-type="A">A</button>
+      <button class="chip" data-type="AAAA">AAAA</button>
+      <button class="chip" data-type="CNAME">CNAME</button>
+      <button class="chip" data-type="MX">MX</button>
+      <button class="chip" data-type="TXT">TXT</button>
+      <button class="chip" data-type="NS">NS</button>
+      <button class="chip" data-type="SOA">SOA</button>
+      <button class="chip" data-type="SRV">SRV</button>
+      <button class="chip" data-type="CAA">CAA</button>
     </div>
   </div>
 
@@ -518,14 +527,11 @@
 
   <!-- ===================== LOOKUP ===================== -->
   <div class="panel active" id="panel-lookup">
-    <div class="rail">
-      <span class="pill good">8 records found</span>
-      <span class="pill good">Cloudflare-authoritative</span>
-    </div>
+    <div class="rail" id="lookup-rail"></div>
 
     <div class="card">
       <div class="card-head">
-        <h3>greglepage.com — all common types</h3>
+        <h3 id="lookup-title">—</h3>
         <div class="toggle">
           <button class="active" data-view="table">Table</button>
           <button data-view="raw">Raw dig</button>
@@ -537,116 +543,54 @@
           <thead>
             <tr><th>Type</th><th>TTL</th><th>Value</th></tr>
           </thead>
-          <tbody>
-            <tr><td class="type">A</td><td class="ttl">300</td><td class="value">172.67.150.249</td></tr>
-            <tr><td class="type">A</td><td class="ttl">300</td><td class="value">104.21.0.130</td></tr>
-            <tr><td class="type">AAAA</td><td class="ttl">300</td><td class="value">2606:4700:3033::ac43:96f9</td></tr>
-            <tr><td class="type">AAAA</td><td class="ttl">300</td><td class="value">2606:4700:3031::6815:82</td></tr>
-            <tr><td class="type">MX</td><td class="ttl">300</td><td class="value">10 mx1.simplelogin.co</td></tr>
-            <tr><td class="type">MX</td><td class="ttl">300</td><td class="value">20 mx2.simplelogin.co</td></tr>
-            <tr><td class="type">NS</td><td class="ttl">86400</td><td class="value">margot.ns.cloudflare.com</td></tr>
-            <tr><td class="type">NS</td><td class="ttl">86400</td><td class="value">piotr.ns.cloudflare.com</td></tr>
-            <tr><td class="type">TXT</td><td class="ttl">300</td><td class="value">v=spf1 include:simplelogin.co include:_spf.protonmail.ch ~all</td></tr>
-            <tr><td class="type">SOA</td><td class="ttl">1800</td><td class="value">margot.ns.cloudflare.com dns.cloudflare.com 2413466157 10000 2400 604800 1800</td></tr>
-          </tbody>
+          <tbody id="lookup-tbody"></tbody>
         </table>
       </div>
 
-      <pre class="raw" id="view-raw" style="display:none;"><span class="c">; &lt;&lt;&gt;&gt; dig +noall +answer greglepage.com ANY</span>
-greglepage.com.        300   IN  <span class="t">A</span>      172.67.150.249
-greglepage.com.        300   IN  <span class="t">A</span>      104.21.0.130
-greglepage.com.        300   IN  <span class="t">AAAA</span>   2606:4700:3033::ac43:96f9
-greglepage.com.        300   IN  <span class="t">AAAA</span>   2606:4700:3031::6815:82
-greglepage.com.        300   IN  <span class="t">MX</span>     10 mx1.simplelogin.co.
-greglepage.com.        300   IN  <span class="t">MX</span>     20 mx2.simplelogin.co.
-greglepage.com.        86400 IN  <span class="t">NS</span>     margot.ns.cloudflare.com.
-greglepage.com.        86400 IN  <span class="t">NS</span>     piotr.ns.cloudflare.com.
-greglepage.com.        300   IN  <span class="t">TXT</span>    "v=spf1 include:simplelogin.co include:_spf.protonmail.ch ~all"
-greglepage.com.        1800  IN  <span class="t">SOA</span>    margot.ns.cloudflare.com. dns.cloudflare.com. 2413466157 10000 2400 604800 1800</pre>
+      <pre class="raw" id="view-raw" style="display:none;"></pre>
     </div>
   </div>
 
   <!-- ===================== PROPAGATION ===================== -->
   <div class="panel" id="panel-propagation">
-    <div class="rail">
-      <span class="pill good">In sync across all 3 resolvers</span>
-    </div>
+    <div class="rail" id="prop-rail"></div>
     <div class="card">
       <div class="card-head">
-        <h3>greglepage.com — A record, queried simultaneously</h3>
+        <h3 id="prop-title">—</h3>
       </div>
-      <div class="resolver-grid">
-        <div class="resolver">
-          <div class="resolver-head"><span class="name">Cloudflare</span><span class="ip">1.1.1.1</span></div>
-          <ul><li>172.67.150.249</li><li>104.21.0.130</li></ul>
-        </div>
-        <div class="resolver">
-          <div class="resolver-head"><span class="name">Google</span><span class="ip">8.8.8.8</span></div>
-          <ul><li>172.67.150.249</li><li>104.21.0.130</li></ul>
-        </div>
-        <div class="resolver">
-          <div class="resolver-head"><span class="name">Quad9</span><span class="ip">9.9.9.9</span></div>
-          <ul><li>172.67.150.249</li><li>104.21.0.130</li></ul>
-        </div>
-      </div>
-      <div class="note">All three resolvers returned identical answers — this change (or this steady-state record) has fully propagated. When resolvers disagree, this row highlights amber and the mismatched values are called out directly.</div>
+      <div class="resolver-grid" id="prop-grid"></div>
+      <div class="note" id="prop-note">Propagation uses whichever record type is selected above (defaults to A when "all common" is selected).</div>
     </div>
   </div>
 
   <!-- ===================== EMAIL HEALTH ===================== -->
   <div class="panel" id="panel-email">
-    <div class="rail">
-      <span class="pill good">SPF pass</span>
-      <span class="pill good">DKIM pass — 3 selectors</span>
-      <span class="pill warn">DMARC — no reporting configured</span>
-    </div>
+    <div class="rail" id="email-rail"></div>
     <div class="card">
-      <div class="card-head"><h3>greglepage.com — email deliverability</h3></div>
-      <div class="check-list">
-        <div class="check">
-          <span class="check-icon good">✓</span>
-          <span class="check-label">SPF</span>
-          <div class="check-body">
-            <p>One record, ends in a soft fail — well-formed.</p>
-            <p><code>v=spf1 include:simplelogin.co include:_spf.protonmail.ch ~all</code></p>
-          </div>
-        </div>
-        <div class="check">
-          <span class="check-icon good">✓</span>
-          <span class="check-label">DKIM</span>
-          <div class="check-body">
-            <p>3 Proton Mail selectors found and correctly delegated:</p>
-            <p><code>protonmail._domainkey</code> · <code>protonmail2._domainkey</code> · <code>protonmail3._domainkey</code> → <code>domains.proton.ch</code></p>
-          </div>
-        </div>
-        <div class="check">
-          <span class="check-icon warn">!</span>
-          <span class="check-label">DMARC</span>
-          <div class="check-body">
-            <p>Policy is enforcing (<code>p=quarantine</code>), but there's no <code>rua=</code> tag — so failures are being acted on but never reported back to you.</p>
-            <p><code>v=DMARC1; p=quarantine</code></p>
-          </div>
-        </div>
-      </div>
+      <div class="card-head"><h3 id="email-title">—</h3></div>
+      <div class="check-list" id="email-checks"></div>
     </div>
   </div>
 
   <!-- ===================== REVERSE DNS ===================== -->
   <div class="panel" id="panel-reverse">
-    <div class="rail">
-      <span class="pill warn">No PTR record</span>
+    <div class="command" style="margin-bottom: 16px;">
+      <div class="command-row">
+        <span class="prompt-glyph">&gt;</span>
+        <input class="command-input mono" id="reverse-input" value="172.67.150.249" spellcheck="false" autocomplete="off" placeholder="IPv4 address">
+        <button class="run-btn" id="reverse-btn">Run reverse lookup</button>
+      </div>
     </div>
+    <div class="rail" id="reverse-rail"></div>
     <div class="card">
-      <div class="card-head"><h3>172.67.150.249 → PTR</h3></div>
+      <div class="card-head"><h3 id="reverse-title">—</h3></div>
       <div class="table-scroll">
         <table class="records">
           <thead><tr><th>Query</th><th>Result</th></tr></thead>
-          <tbody>
-            <tr><td class="type">PTR</td><td class="value">NXDOMAIN — no reverse record configured</td></tr>
-          </tbody>
+          <tbody id="reverse-tbody"></tbody>
         </table>
       </div>
-      <div class="note">Expected here: this IP is a shared Cloudflare edge address, not a dedicated mail or app host, so there's nothing for the anycast network to point back to. A missing PTR only matters when the IP in question is sending mail directly.</div>
+      <div class="note" id="reverse-note"></div>
     </div>
   </div>
 
@@ -660,17 +604,251 @@ greglepage.com.        1800  IN  <span class="t">SOA</span>    margot.ns.cloudfl
     </div>
   </div>
 
-  <footer>Layout draft for dig.greglepage.com — every value shown above is a real, live lookup against greglepage.com. Nothing here is wired to a backend yet.</footer>
+  <footer>dig.greglepage.com — Lookup, Propagation, Email health, and Reverse DNS all run live queries against Cloudflare, Google, and Quad9 at request time. Nothing is cached or pre-baked.</footer>
 
 </div>
 
 <script>
+  var domainInput = document.getElementById('domain-input');
+  var runBtn = document.getElementById('run-btn');
+  var reverseInput = document.getElementById('reverse-input');
+  var reverseBtn = document.getElementById('reverse-btn');
+  var loaded = { lookup: false, propagation: false, email: false, reverse: false };
+
+  function activePanelName() {
+    return document.querySelector('.tab.active').dataset.panel;
+  }
+  function activeType() {
+    var chip = document.querySelector('#type-chips .chip.active');
+    return chip ? chip.dataset.type : 'ALL';
+  }
+  function el(tag, opts) {
+    var node = document.createElement(tag);
+    opts = opts || {};
+    if (opts.cls) node.className = opts.cls;
+    if (opts.text !== undefined) node.textContent = opts.text;
+    return node;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function pill(container, cls, text) { container.appendChild(el('span', { cls: 'pill ' + cls, text: text })); }
+
+  // ---------------- Lookup ----------------
+  async function runLookup() {
+    var domain = domainInput.value.trim();
+    var type = activeType();
+    var rail = document.getElementById('lookup-rail');
+    var title = document.getElementById('lookup-title');
+    var tbody = document.getElementById('lookup-tbody');
+    var raw = document.getElementById('view-raw');
+
+    clear(rail); pill(rail, 'loading', 'Querying …');
+    title.textContent = domain + ' — ' + (type === 'ALL' ? 'all common types' : type);
+    clear(tbody);
+    raw.textContent = '';
+
+    try {
+      var res = await fetch('/api/lookup?domain=' + encodeURIComponent(domain) + '&types=' + encodeURIComponent(type));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'Lookup failed'); return; }
+
+      pill(rail, data.records.length ? 'good' : 'warn', data.records.length + ' record' + (data.records.length === 1 ? '' : 's') + ' found');
+      if (data.errors && data.errors.length) pill(rail, 'warn', data.errors.length + ' resolver warning' + (data.errors.length === 1 ? '' : 's'));
+
+      if (data.records.length === 0) {
+        var tr = el('tr', { cls: 'empty-row' });
+        var td = el('td', { text: 'No records found for this query.' });
+        td.colSpan = 3;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+      data.records.forEach(function (r) {
+        var tr = el('tr');
+        tr.appendChild(el('td', { cls: 'type', text: r.type }));
+        tr.appendChild(el('td', { cls: 'ttl', text: r.ttl }));
+        tr.appendChild(el('td', { cls: 'value', text: r.data }));
+        tbody.appendChild(tr);
+      });
+
+      var header = '; <<>> dig +noall +answer ' + domain + ' ' + type + '\n';
+      var lines = data.records.map(function (r) {
+        return (domain + '.').padEnd(24) + String(r.ttl).padEnd(8) + 'IN'.padEnd(4) + r.type.padEnd(7) + r.data;
+      });
+      raw.textContent = header + lines.join('\n');
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  // ---------------- Propagation ----------------
+  async function runPropagation() {
+    var domain = domainInput.value.trim();
+    var type = activeType() === 'ALL' ? 'A' : activeType();
+    var rail = document.getElementById('prop-rail');
+    var title = document.getElementById('prop-title');
+    var grid = document.getElementById('prop-grid');
+    var note = document.getElementById('prop-note');
+
+    clear(rail); pill(rail, 'loading', 'Querying 3 resolvers …');
+    title.textContent = domain + ' — ' + type + ' record, queried simultaneously';
+    clear(grid);
+
+    try {
+      var res = await fetch('/api/propagation?domain=' + encodeURIComponent(domain) + '&type=' + encodeURIComponent(type));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'Propagation check failed'); return; }
+
+      var reachableCount = data.resolvers.filter(function (r) { return !r.error; }).length;
+      if (data.inSync && data.allReachable) {
+        pill(rail, 'good', 'In sync across all ' + data.resolvers.length + ' resolvers');
+        note.textContent = 'All resolvers returned identical answers — this record has fully propagated.';
+      } else if (data.inSync && !data.allReachable) {
+        pill(rail, 'warn', 'In sync across ' + reachableCount + ' of ' + data.resolvers.length + ' resolvers');
+        note.textContent = 'The reachable resolvers agree, but ' + (data.resolvers.length - reachableCount) + ' could not be queried right now — see the error below.';
+      } else if (!data.allReachable) {
+        pill(rail, 'bad', 'Some resolvers unreachable');
+        note.textContent = 'One or more resolvers could not be queried, so propagation can\'t be fully confirmed right now.';
+      } else {
+        pill(rail, 'bad', 'Resolvers disagree');
+        note.textContent = 'These resolvers are not returning the same answer right now — this usually means a change is still propagating, or the record was updated very recently.';
+      }
+
+      data.resolvers.forEach(function (r) {
+        var col = el('div', { cls: 'resolver' });
+        var head = el('div', { cls: 'resolver-head' });
+        head.appendChild(el('span', { cls: 'name', text: r.label }));
+        head.appendChild(el('span', { cls: 'ip', text: r.ip }));
+        col.appendChild(head);
+        var ul = el('ul');
+        if (r.error) {
+          ul.appendChild(el('li', { text: 'Error: ' + r.error }));
+        } else if (r.answers.length === 0) {
+          ul.appendChild(el('li', { text: 'No answer' }));
+        } else {
+          r.answers.forEach(function (a) { ul.appendChild(el('li', { text: a.data })); });
+        }
+        col.appendChild(ul);
+        grid.appendChild(col);
+      });
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  // ---------------- Email health ----------------
+  function checkRow(label, result, extraLines) {
+    var row = el('div', { cls: 'check' });
+    row.appendChild(el('span', { cls: 'check-icon ' + result.state, text: result.state === 'good' ? '✓' : '!' }));
+    row.appendChild(el('span', { cls: 'check-label', text: label }));
+    var body = el('div', { cls: 'check-body' });
+    body.appendChild(el('p', { text: result.summary }));
+    (extraLines || []).forEach(function (line) {
+      var p = el('p');
+      var code = el('code', { text: line });
+      p.appendChild(code);
+      body.appendChild(p);
+    });
+    row.appendChild(body);
+    return row;
+  }
+
+  async function runEmail() {
+    var domain = domainInput.value.trim();
+    var rail = document.getElementById('email-rail');
+    var title = document.getElementById('email-title');
+    var checks = document.getElementById('email-checks');
+
+    clear(rail); pill(rail, 'loading', 'Checking SPF, DKIM, DMARC, MX …');
+    title.textContent = domain + ' — email deliverability';
+    clear(checks);
+
+    try {
+      var res = await fetch('/api/email?domain=' + encodeURIComponent(domain));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'Email health check failed'); return; }
+
+      pill(rail, data.spf.state, 'SPF ' + (data.spf.state === 'good' ? 'pass' : 'warn'));
+      pill(rail, data.dkim.state, 'DKIM ' + (data.dkim.state === 'good' ? 'pass — ' + data.dkim.selectors.length + ' selector' + (data.dkim.selectors.length === 1 ? '' : 's') : 'not found'));
+      pill(rail, data.dmarc.state, data.dmarc.state === 'good' ? 'DMARC enforcing' : 'DMARC needs attention');
+      pill(rail, data.mx.state, data.mx.state === 'good' ? 'MX configured' : 'MX missing');
+
+      checks.appendChild(checkRow('SPF', data.spf, data.spf.record ? [data.spf.record] : []));
+      checks.appendChild(checkRow(
+        'DKIM',
+        data.dkim,
+        data.dkim.selectors.map(function (s) { return s.selector + '._domainkey → ' + s.target; })
+      ));
+      checks.appendChild(checkRow('DMARC', data.dmarc, data.dmarc.record ? [data.dmarc.record] : []));
+      checks.appendChild(checkRow('MX', data.mx, data.mx.records));
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  // ---------------- Reverse DNS ----------------
+  async function runReverse() {
+    var ip = reverseInput.value.trim();
+    var rail = document.getElementById('reverse-rail');
+    var title = document.getElementById('reverse-title');
+    var tbody = document.getElementById('reverse-tbody');
+    var note = document.getElementById('reverse-note');
+
+    clear(rail); pill(rail, 'loading', 'Querying …');
+    title.textContent = ip + ' → PTR';
+    clear(tbody); note.textContent = '';
+
+    try {
+      var res = await fetch('/api/reverse?ip=' + encodeURIComponent(ip));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'Reverse lookup failed'); return; }
+
+      if (data.found) {
+        pill(rail, 'good', data.hostnames.length + ' PTR record' + (data.hostnames.length === 1 ? '' : 's'));
+        data.hostnames.forEach(function (h) {
+          var tr = el('tr');
+          tr.appendChild(el('td', { cls: 'type', text: 'PTR' }));
+          tr.appendChild(el('td', { cls: 'value', text: h }));
+          tbody.appendChild(tr);
+        });
+      } else {
+        pill(rail, 'warn', 'No PTR record');
+        var tr = el('tr');
+        tr.appendChild(el('td', { cls: 'type', text: 'PTR' }));
+        tr.appendChild(el('td', { cls: 'value', text: data.summary }));
+        tbody.appendChild(tr);
+        note.textContent = 'A missing PTR is common for shared or CDN-fronted IP addresses — it only tends to matter when this exact IP is sending mail directly.';
+      }
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  var runners = { lookup: runLookup, propagation: runPropagation, email: runEmail };
+
+  function runActive() {
+    var name = activePanelName();
+    if (runners[name]) { loaded[name] = true; runners[name](); }
+  }
+
+  runBtn.addEventListener('click', runActive);
+  domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
+  reverseBtn.addEventListener('click', function () { loaded.reverse = true; runReverse(); });
+  reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { loaded.reverse = true; runReverse(); } });
+
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () {
       document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
       document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
       tab.classList.add('active');
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+      var name = tab.dataset.panel;
+      if (!loaded[name]) {
+        loaded[name] = true;
+        if (name === 'reverse') runReverse(); else runners[name] && runners[name]();
+      }
     });
   });
 
@@ -678,6 +856,8 @@ greglepage.com.        1800  IN  <span class="t">SOA</span>    margot.ns.cloudfl
     chip.addEventListener('click', function () {
       chip.parentElement.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
       chip.classList.add('active');
+      var name = activePanelName();
+      if (name === 'lookup' || name === 'propagation') runners[name]();
     });
   });
 
@@ -693,4 +873,7 @@ greglepage.com.        1800  IN  <span class="t">SOA</span>    margot.ns.cloudfl
       });
     });
   });
+
+  loaded.lookup = true;
+  runLookup();
 </script>
