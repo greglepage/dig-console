@@ -1,51 +1,24 @@
-import { connect } from "cloudflare:sockets";
 import { isValidHostname } from "../_lib/dns.js";
 
-async function whoisQueryWithRetry(server, query, attempts = 3) {
-  let lastErr;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const text = await whoisQuery(server, query);
-      if (text && text.trim().length > 0) return text;
-      lastErr = new Error("empty response");
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr;
+// rdap.org resolves the correct authoritative RDAP server via IANA's bootstrap
+// registry and redirects there. RDAP is the structured-JSON, HTTPS-native
+// successor to WHOIS — a much better fit than raw port-43 sockets, which
+// Cloudflare Pages Functions doesn't support (Workers-only feature).
+function vcardField(vcardArray, field) {
+  if (!Array.isArray(vcardArray) || !Array.isArray(vcardArray[1])) return null;
+  const entry = vcardArray[1].find((e) => e[0] === field);
+  return entry ? entry[3] : null;
 }
 
-async function whoisQuery(server, query) {
-  const socket = connect({ hostname: server, port: 43 });
-  await socket.opened;
-  const writer = socket.writable.getWriter();
-  await writer.write(new TextEncoder().encode(query + "\r\n"));
-  await writer.close();
-
-  const reader = socket.readable.getReader();
-  const chunks = [];
-  let total = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    total += value.length;
-  }
-  await socket.close().catch(() => {});
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) { bytes.set(c, offset); offset += c.length; }
-  return new TextDecoder().decode(bytes);
+function findRegistrar(entities) {
+  if (!Array.isArray(entities)) return null;
+  const registrar = entities.find((e) => Array.isArray(e.roles) && e.roles.includes("registrar"));
+  return registrar ? vcardField(registrar.vcardArray, "fn") : null;
 }
 
-function parseField(text, labels) {
-  for (const label of labels) {
-    const re = new RegExp("^[ \\t]*" + label + ":\\s*(.+)$", "im");
-    const match = re.exec(text);
-    if (match) return match[1].trim();
-  }
-  return null;
+function findEvent(events, action) {
+  if (!Array.isArray(events)) return null;
+  return events.find((e) => e.eventAction === action)?.eventDate || null;
 }
 
 export async function onRequestGet({ request }) {
@@ -57,47 +30,35 @@ export async function onRequestGet({ request }) {
   }
 
   try {
-    const ianaText = await whoisQueryWithRetry("whois.iana.org", domain);
-    const refer = /^refer:\s*(\S+)/im.exec(ianaText)?.[1];
+    const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+      headers: {
+        accept: "application/rdap+json",
+        "user-agent": "dig.greglepage.com (RDAP client; https://dig.greglepage.com)",
+      },
+    });
 
-    let text = ianaText;
-    let server = "whois.iana.org";
-    if (refer) {
-      server = refer;
-      text = await whoisQueryWithRetry(refer, domain);
-      // Some registries (Verisign, etc.) return a thin record pointing at the registrar's own server.
-      const registrarWhois = /^[ \t]*Registrar WHOIS Server:\s*(\S+)/im.exec(text)?.[1];
-      if (registrarWhois && registrarWhois !== server) {
-        try {
-          const deeper = await whoisQueryWithRetry(registrarWhois, domain, 2);
-          if (deeper && deeper.trim().length > 0) { text = deeper; server = registrarWhois; }
-        } catch {
-          // fall back to the registry-level record already in hand
-        }
-      }
+    if (res.status === 404) {
+      return json({ domain, registered: false });
+    }
+    if (!res.ok) {
+      return json({ error: `RDAP lookup returned HTTP ${res.status}` }, 502);
     }
 
-    const firstLine = text.trim().split(/\r?\n/, 1)[0] || "";
-    if (/no match|not found|no data found|no entries found|status:\s*free|domain not found/i.test(firstLine)) {
-      return json({ domain, registered: false, server, raw: text.trim() });
-    }
-
-    const registrar = parseField(text, ["Registrar", "Sponsoring Registrar"]);
-    const created = parseField(text, ["Creation Date", "created", "Domain Registration Date", "created on"]);
-    const expires = parseField(text, ["Registry Expiry Date", "Registrar Registration Expiration Date", "Expiration Date", "paid-till", "expire"]);
-    const statuses = [...text.matchAll(/^[ \t]*Domain Status:\s*(.+)$/gim)].map((m) => m[1].trim());
-    const nameServers = [...new Set([...text.matchAll(/^[ \t]*Name Server:\s*(.+)$/gim)].map((m) => m[1].trim().toLowerCase()))];
+    const data = await res.json();
+    const registrar = findRegistrar(data.entities);
+    const created = findEvent(data.events, "registration");
+    const expires = findEvent(data.events, "expiration");
+    const nameServers = (data.nameservers || []).map((ns) => ns.ldhName?.toLowerCase()).filter(Boolean);
 
     return json({
       domain,
       registered: true,
-      server,
       registrar,
       created,
       expires,
-      statuses,
+      statuses: data.status || [],
       nameServers,
-      raw: text.trim(),
+      dnssecSigned: !!data.secureDNS?.delegationSigned,
     });
   } catch (err) {
     return json({ error: `WHOIS lookup failed: ${err.message || err}` }, 502);

@@ -501,7 +501,7 @@
   <div class="command">
     <div class="command-row">
       <span class="prompt-glyph">&gt;</span>
-      <input class="command-input mono" id="domain-input" value="greglepage.com" spellcheck="false" autocomplete="off">
+      <input class="command-input mono" id="domain-input" placeholder="example.com" spellcheck="false" autocomplete="off">
       <button class="run-btn" id="run-btn">Run lookup</button>
     </div>
     <div class="chip-row" id="type-chips">
@@ -535,7 +535,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h3 id="lookup-title">—</h3>
+        <h3 id="lookup-title">Enter a domain above, then run a lookup</h3>
         <div class="toggle">
           <button class="active" data-view="table">Table</button>
           <button data-view="raw">Raw dig</button>
@@ -560,7 +560,7 @@
     <div class="rail" id="prop-rail"></div>
     <div class="card">
       <div class="card-head">
-        <h3 id="prop-title">—</h3>
+        <h3 id="prop-title">Enter a domain above, then run a lookup</h3>
       </div>
       <div class="resolver-grid" id="prop-grid"></div>
       <div class="note" id="prop-note">Propagation uses whichever record type is selected above (defaults to A when "all common" is selected).</div>
@@ -571,7 +571,7 @@
   <div class="panel" id="panel-email">
     <div class="rail" id="email-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="email-title">—</h3></div>
+      <div class="card-head"><h3 id="email-title">Enter a domain above, then run a lookup</h3></div>
       <div class="check-list" id="email-checks"></div>
     </div>
   </div>
@@ -581,13 +581,13 @@
     <div class="command" style="margin-bottom: 16px;">
       <div class="command-row">
         <span class="prompt-glyph">&gt;</span>
-        <input class="command-input mono" id="reverse-input" value="172.67.150.249" spellcheck="false" autocomplete="off" placeholder="IPv4 address">
+        <input class="command-input mono" id="reverse-input" spellcheck="false" autocomplete="off" placeholder="IPv4 address, e.g. 172.67.150.249">
         <button class="run-btn" id="reverse-btn">Run reverse lookup</button>
       </div>
     </div>
     <div class="rail" id="reverse-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="reverse-title">—</h3></div>
+      <div class="card-head"><h3 id="reverse-title">Enter an IPv4 address above, then run a reverse lookup</h3></div>
       <div class="table-scroll">
         <table class="records">
           <thead><tr><th>Query</th><th>Result</th></tr></thead>
@@ -602,7 +602,7 @@
   <div class="panel" id="panel-whois">
     <div class="rail" id="whois-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="whois-title">—</h3></div>
+      <div class="card-head"><h3 id="whois-title">Enter a domain above, then run a lookup</h3></div>
       <div class="table-scroll">
         <table class="records kv">
           <tbody id="whois-tbody"></tbody>
@@ -615,7 +615,7 @@
   <div class="panel" id="panel-ssl">
     <div class="rail" id="ssl-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="ssl-title">—</h3></div>
+      <div class="card-head"><h3 id="ssl-title">Enter a domain above, then run a lookup</h3></div>
       <div class="table-scroll">
         <table class="records kv">
           <tbody id="ssl-tbody"></tbody>
@@ -628,7 +628,7 @@
   <div class="panel" id="panel-dnssec">
     <div class="rail" id="dnssec-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="dnssec-title">—</h3></div>
+      <div class="card-head"><h3 id="dnssec-title">Enter a domain above, then run a lookup</h3></div>
       <div class="check-list" id="dnssec-checks"></div>
     </div>
   </div>
@@ -638,9 +638,7 @@
     <div class="card" style="margin-bottom: 16px;">
       <div class="card-head"><h3>Domains, one per line</h3></div>
       <div style="padding: 12px 16px;">
-        <textarea id="bulk-input" class="mono bulk-textarea" spellcheck="false" placeholder="greglepage.com&#10;bitaxe.greglepage.com&#10;mrpotatoe.com">greglepage.com
-bitaxe.greglepage.com
-mrpotatoe.com</textarea>
+        <textarea id="bulk-input" class="mono bulk-textarea" spellcheck="false" placeholder="example.com&#10;example.net&#10;example.org"></textarea>
         <button class="run-btn" id="bulk-btn" style="margin-top: 10px;">Run bulk check</button>
       </div>
     </div>
@@ -667,7 +665,6 @@ mrpotatoe.com</textarea>
   var runBtn = document.getElementById('run-btn');
   var reverseInput = document.getElementById('reverse-input');
   var reverseBtn = document.getElementById('reverse-btn');
-  var loaded = { lookup: false, propagation: false, email: false, reverse: false, whois: false, ssl: false, dnssec: false, bulk: false };
 
   function activePanelName() {
     return document.querySelector('.tab.active').dataset.panel;
@@ -686,8 +683,15 @@ mrpotatoe.com</textarea>
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function pill(container, cls, text) { container.appendChild(el('span', { cls: 'pill ' + cls, text: text })); }
 
+  // Guards against a slower earlier request overwriting a faster later one
+  // (e.g. user changes the domain and re-runs before the first query returns).
+  var seq = { lookup: 0, propagation: 0, email: 0, reverse: 0, whois: 0, ssl: 0, dnssec: 0, bulk: 0 };
+  function beginRun(key) { return ++seq[key]; }
+  function isCurrent(key, token) { return seq[key] === token; }
+
   // ---------------- Lookup ----------------
   async function runLookup() {
+    var token = beginRun('lookup');
     var domain = domainInput.value.trim();
     var type = activeType();
     var rail = document.getElementById('lookup-rail');
@@ -703,6 +707,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/lookup?domain=' + encodeURIComponent(domain) + '&types=' + encodeURIComponent(type));
       var data = await res.json();
+      if (!isCurrent('lookup', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Lookup failed'); return; }
 
@@ -730,12 +735,14 @@ mrpotatoe.com</textarea>
       });
       raw.textContent = header + lines.join('\n');
     } catch (err) {
+      if (!isCurrent('lookup', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
 
   // ---------------- Propagation ----------------
   async function runPropagation() {
+    var token = beginRun('propagation');
     var domain = domainInput.value.trim();
     var type = activeType() === 'ALL' ? 'A' : activeType();
     var rail = document.getElementById('prop-rail');
@@ -750,6 +757,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/propagation?domain=' + encodeURIComponent(domain) + '&type=' + encodeURIComponent(type));
       var data = await res.json();
+      if (!isCurrent('propagation', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Propagation check failed'); return; }
 
@@ -786,6 +794,7 @@ mrpotatoe.com</textarea>
         grid.appendChild(col);
       });
     } catch (err) {
+      if (!isCurrent('propagation', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
@@ -808,6 +817,7 @@ mrpotatoe.com</textarea>
   }
 
   async function runEmail() {
+    var token = beginRun('email');
     var domain = domainInput.value.trim();
     var rail = document.getElementById('email-rail');
     var title = document.getElementById('email-title');
@@ -820,6 +830,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/email?domain=' + encodeURIComponent(domain));
       var data = await res.json();
+      if (!isCurrent('email', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Email health check failed'); return; }
 
@@ -837,12 +848,14 @@ mrpotatoe.com</textarea>
       checks.appendChild(checkRow('DMARC', data.dmarc, data.dmarc.record ? [data.dmarc.record] : []));
       checks.appendChild(checkRow('MX', data.mx, data.mx.records));
     } catch (err) {
+      if (!isCurrent('email', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
 
   // ---------------- Reverse DNS ----------------
   async function runReverse() {
+    var token = beginRun('reverse');
     var ip = reverseInput.value.trim();
     var rail = document.getElementById('reverse-rail');
     var title = document.getElementById('reverse-title');
@@ -856,6 +869,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/reverse?ip=' + encodeURIComponent(ip));
       var data = await res.json();
+      if (!isCurrent('reverse', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Reverse lookup failed'); return; }
 
@@ -876,6 +890,7 @@ mrpotatoe.com</textarea>
         note.textContent = 'A missing PTR is common for shared or CDN-fronted IP addresses — it only tends to matter when this exact IP is sending mail directly.';
       }
     } catch (err) {
+      if (!isCurrent('reverse', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
@@ -889,6 +904,7 @@ mrpotatoe.com</textarea>
   }
 
   async function runWhois() {
+    var token = beginRun('whois');
     var domain = domainInput.value.trim();
     var rail = document.getElementById('whois-rail');
     var title = document.getElementById('whois-title');
@@ -901,6 +917,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/whois?domain=' + encodeURIComponent(domain));
       var data = await res.json();
+      if (!isCurrent('whois', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'WHOIS lookup failed'); return; }
 
@@ -924,14 +941,17 @@ mrpotatoe.com</textarea>
       if (data.expires) kvRow(tbody, 'Expires', data.expires + expiresNote);
       if (data.statuses && data.statuses.length) kvRow(tbody, 'Status', data.statuses.join(', '));
       if (data.nameServers && data.nameServers.length) kvRow(tbody, 'Name servers', data.nameServers.join(', '));
-      if (!data.registrar && !data.created && !data.expires) kvRow(tbody, 'Raw response', data.raw.split('\n').slice(0, 6).join(' / '));
+      kvRow(tbody, 'DNSSEC', data.dnssecSigned ? 'Delegation signed' : 'Not signed');
+      if (!data.registrar && !data.created && !data.expires) kvRow(tbody, 'Note', 'Registry returned limited detail for this domain.');
     } catch (err) {
+      if (!isCurrent('whois', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
 
   // ---------------- SSL / TLS ----------------
   async function runSsl() {
+    var token = beginRun('ssl');
     var domain = domainInput.value.trim();
     var rail = document.getElementById('ssl-rail');
     var title = document.getElementById('ssl-title');
@@ -944,6 +964,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/ssl?domain=' + encodeURIComponent(domain));
       var data = await res.json();
+      if (!isCurrent('ssl', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'SSL lookup failed'); return; }
 
@@ -959,12 +980,14 @@ mrpotatoe.com</textarea>
       kvRow(tbody, 'Covers', data.sans.join(', '));
       kvRow(tbody, 'Seen in CT logs', data.recentCertCount + ' certificate' + (data.recentCertCount === 1 ? '' : 's') + ' (all time)');
     } catch (err) {
+      if (!isCurrent('ssl', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
 
   // ---------------- DNSSEC ----------------
   async function runDnssec() {
+    var token = beginRun('dnssec');
     var domain = domainInput.value.trim();
     var rail = document.getElementById('dnssec-rail');
     var title = document.getElementById('dnssec-title');
@@ -977,6 +1000,7 @@ mrpotatoe.com</textarea>
     try {
       var res = await fetch('/api/dnssec?domain=' + encodeURIComponent(domain));
       var data = await res.json();
+      if (!isCurrent('dnssec', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'DNSSEC check failed'); return; }
 
@@ -986,6 +1010,7 @@ mrpotatoe.com</textarea>
       checks.appendChild(checkRow('Delegated', { state: data.delegated ? 'good' : 'warn', summary: data.delegated ? 'Parent zone has a matching DS record.' : 'No DS record found in the parent zone.' }, data.dsRecords));
       checks.appendChild(checkRow('Validating', { state: data.validating ? 'good' : 'warn', summary: data.validating ? 'A validating resolver confirms the signatures.' : 'Signatures did not validate.' }));
     } catch (err) {
+      if (!isCurrent('dnssec', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
     }
   }
@@ -1021,6 +1046,7 @@ mrpotatoe.com</textarea>
   }
 
   async function runBulk() {
+    var token = beginRun('bulk');
     var domains = bulkInput.value.split('\n').map(function (d) { return d.trim(); }).filter(Boolean);
     var rail = document.getElementById('bulk-rail');
     var tbody = document.getElementById('bulk-tbody');
@@ -1039,6 +1065,7 @@ mrpotatoe.com</textarea>
     });
 
     var results = await Promise.all(domains.map(checkOneDomain));
+    if (!isCurrent('bulk', token)) return;
     clear(rail);
     var goodCount = results.filter(function (r) { return r.a === 'good'; }).length;
     pill(rail, 'good', goodCount + ' of ' + domains.length + ' resolving');
@@ -1056,14 +1083,14 @@ mrpotatoe.com</textarea>
 
   function runActive() {
     var name = activePanelName();
-    if (runners[name]) { loaded[name] = true; runners[name](); }
+    if (runners[name]) runners[name]();
   }
 
   runBtn.addEventListener('click', runActive);
   domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
-  reverseBtn.addEventListener('click', function () { loaded.reverse = true; runReverse(); });
-  reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { loaded.reverse = true; runReverse(); } });
-  bulkBtn.addEventListener('click', function () { loaded.bulk = true; runBulk(); });
+  reverseBtn.addEventListener('click', runReverse);
+  reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReverse(); });
+  bulkBtn.addEventListener('click', runBulk);
 
   var chipRow = document.getElementById('type-chips');
   function updateChipVisibility(name) {
@@ -1076,14 +1103,7 @@ mrpotatoe.com</textarea>
       document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
       tab.classList.add('active');
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
-      var name = tab.dataset.panel;
-      updateChipVisibility(name);
-      if (!loaded[name]) {
-        loaded[name] = true;
-        if (name === 'reverse') runReverse();
-        else if (name === 'bulk') runBulk();
-        else runners[name] && runners[name]();
-      }
+      updateChipVisibility(tab.dataset.panel);
     });
   });
 
@@ -1109,6 +1129,4 @@ mrpotatoe.com</textarea>
     });
   });
 
-  loaded.lookup = true;
-  runLookup();
 </script>
