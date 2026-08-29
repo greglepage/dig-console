@@ -21,6 +21,12 @@ export const RECORD_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "SR
 export const EXTRA_RECORD_TYPES = ["DNSKEY", "DS", "HTTPS", "SVCB", "TLSA", "NAPTR", "SSHFP", "LOC", "DNAME", "CERT", "RP"];
 export const ALL_RECORD_TYPES = RECORD_TYPES.concat(EXTRA_RECORD_TYPES);
 
+// DKIM selectors worth trying without the user having to know their provider.
+export const COMMON_DKIM_SELECTORS = [
+  "google", "selector1", "selector2", "default", "dkim",
+  "protonmail", "protonmail2", "protonmail3", "k1", "k2", "mandrill", "everlytickey1",
+];
+
 export function isValidHostname(name) {
   return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(name);
 }

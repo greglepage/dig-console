@@ -505,8 +505,8 @@
       <button class="run-btn" id="run-btn">Run lookup</button>
     </div>
     <div class="chip-row" id="type-chips">
-      <button class="chip active" data-type="COMMON">ALL COMMON</button>
-      <button class="chip" data-type="ALL">ALL (incl. DNSSEC, TLSA, HTTPS…)</button>
+      <button class="chip" data-type="ALL">ALL</button>
+      <button class="chip active" data-type="COMMON">COMMON</button>
       <button class="chip" data-type="A">A</button>
       <button class="chip" data-type="AAAA">AAAA</button>
       <button class="chip" data-type="CNAME">CNAME</button>
@@ -527,7 +527,6 @@
     <button class="tab" data-panel="whois">WHOIS</button>
     <button class="tab" data-panel="ssl">SSL / TLS</button>
     <button class="tab" data-panel="dnssec">DNSSEC</button>
-    <button class="tab" data-panel="bulk">Bulk</button>
   </div>
 
   <!-- ===================== LOOKUP ===================== -->
@@ -546,7 +545,7 @@
       <div class="table-scroll" id="view-table">
         <table class="records">
           <thead>
-            <tr><th>Type</th><th>TTL</th><th>Value</th></tr>
+            <tr><th>Name</th><th>Type</th><th>TTL</th><th>Value</th></tr>
           </thead>
           <tbody id="lookup-tbody"></tbody>
         </table>
@@ -634,29 +633,6 @@
     </div>
   </div>
 
-  <!-- ===================== BULK ===================== -->
-  <div class="panel" id="panel-bulk">
-    <div class="card" style="margin-bottom: 16px;">
-      <div class="card-head"><h3>Domains, one per line</h3></div>
-      <div style="padding: 12px 16px;">
-        <textarea id="bulk-input" class="mono bulk-textarea" spellcheck="false" placeholder="example.com&#10;example.net&#10;example.org"></textarea>
-        <button class="run-btn" id="bulk-btn" style="margin-top: 10px;">Run bulk check</button>
-      </div>
-    </div>
-    <div class="rail" id="bulk-rail"></div>
-    <div class="card">
-      <div class="card-head"><h3>A record, SPF, DKIM, DMARC, MX at a glance</h3></div>
-      <div class="table-scroll">
-        <table class="records">
-          <thead>
-            <tr><th>Domain</th><th>A</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>MX</th></tr>
-          </thead>
-          <tbody id="bulk-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <footer>dig.greglepage.com — every tab runs live queries at request time. Nothing is cached or pre-baked.</footer>
 
 </div>
@@ -686,7 +662,7 @@
 
   // Guards against a slower earlier request overwriting a faster later one
   // (e.g. user changes the domain and re-runs before the first query returns).
-  var seq = { lookup: 0, propagation: 0, email: 0, reverse: 0, whois: 0, ssl: 0, dnssec: 0, bulk: 0 };
+  var seq = { lookup: 0, propagation: 0, email: 0, reverse: 0, whois: 0, ssl: 0, dnssec: 0 };
   function beginRun(key) { return ++seq[key]; }
   function isCurrent(key, token) { return seq[key] === token; }
 
@@ -718,12 +694,13 @@
       if (data.records.length === 0) {
         var tr = el('tr', { cls: 'empty-row' });
         var td = el('td', { text: 'No records found for this query.' });
-        td.colSpan = 3;
+        td.colSpan = 4;
         tr.appendChild(td);
         tbody.appendChild(tr);
       }
       data.records.forEach(function (r) {
         var tr = el('tr');
+        tr.appendChild(el('td', { cls: 'value', text: r.name }));
         tr.appendChild(el('td', { cls: 'type', text: r.type }));
         tr.appendChild(el('td', { cls: 'ttl', text: r.ttl }));
         tr.appendChild(el('td', { cls: 'value', text: r.data }));
@@ -732,7 +709,7 @@
 
       var header = '; <<>> dig +noall +answer ' + domain + ' ' + type + '\n';
       var lines = data.records.map(function (r) {
-        return (domain + '.').padEnd(24) + String(r.ttl).padEnd(8) + 'IN'.padEnd(4) + r.type.padEnd(7) + r.data;
+        return (r.name + '.').padEnd(30) + String(r.ttl).padEnd(8) + 'IN'.padEnd(4) + r.type.padEnd(7) + r.data;
       });
       raw.textContent = header + lines.join('\n');
     } catch (err) {
@@ -1017,80 +994,6 @@
     }
   }
 
-  // ---------------- Bulk ----------------
-  var bulkInput = document.getElementById('bulk-input');
-  var bulkBtn = document.getElementById('bulk-btn');
-
-  function statusDot(cls) {
-    var span = el('span', { cls: 'dot ' + cls });
-    return span;
-  }
-
-  async function checkOneDomain(domain) {
-    var result = { domain: domain, a: 'bad', spf: 'bad', dkim: 'bad', dmarc: 'bad', mx: 'bad' };
-    try {
-      var lookupRes = await fetch('/api/lookup?domain=' + encodeURIComponent(domain) + '&types=A');
-      var lookupData = await lookupRes.json();
-      result.a = lookupRes.ok && lookupData.records.length > 0 ? 'good' : 'bad';
-    } catch { result.a = 'bad'; }
-
-    try {
-      var emailRes = await fetch('/api/email?domain=' + encodeURIComponent(domain));
-      var emailData = await emailRes.json();
-      if (emailRes.ok) {
-        result.spf = emailData.spf.state;
-        result.dkim = emailData.dkim.state;
-        result.dmarc = emailData.dmarc.state;
-        result.mx = emailData.mx.state;
-      }
-    } catch { /* leave as bad */ }
-    return result;
-  }
-
-  async function runBulk() {
-    var token = beginRun('bulk');
-    var domains = bulkInput.value.split('\n').map(function (d) { return d.trim(); }).filter(Boolean);
-    var rail = document.getElementById('bulk-rail');
-    var tbody = document.getElementById('bulk-tbody');
-    clear(rail); clear(tbody);
-    if (domains.length === 0) { pill(rail, 'warn', 'Enter at least one domain'); return; }
-
-    pill(rail, 'loading', 'Checked 0 of ' + domains.length + ' …');
-    var rows = {};
-    domains.forEach(function (d) {
-      var tr = el('tr');
-      var cells = { a: el('td'), spf: el('td'), dkim: el('td'), dmarc: el('td'), mx: el('td') };
-      tr.appendChild(el('td', { cls: 'value', text: d }));
-      tr.appendChild(cells.a); tr.appendChild(cells.spf); tr.appendChild(cells.dkim); tr.appendChild(cells.dmarc); tr.appendChild(cells.mx);
-      tbody.appendChild(tr);
-      rows[d] = cells;
-    });
-
-    var completed = 0;
-    var goodCount = 0;
-    domains.forEach(function (d) {
-      checkOneDomain(d).then(function (r) {
-        if (!isCurrent('bulk', token)) return;
-        completed++;
-        if (r.a === 'good') goodCount++;
-
-        var cells = rows[d];
-        if (cells) {
-          ['a', 'spf', 'dkim', 'dmarc', 'mx'].forEach(function (key) {
-            cells[key].appendChild(statusDot(r[key]));
-          });
-        }
-
-        clear(rail);
-        if (completed === domains.length) {
-          pill(rail, 'good', goodCount + ' of ' + domains.length + ' resolved');
-        } else {
-          pill(rail, 'loading', 'Checked ' + completed + ' of ' + domains.length + ' …');
-        }
-      });
-    });
-  }
-
   var runners = { lookup: runLookup, propagation: runPropagation, email: runEmail, whois: runWhois, ssl: runSsl, dnssec: runDnssec };
 
   function runActive() {
@@ -1102,7 +1005,6 @@
   domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
   reverseBtn.addEventListener('click', runReverse);
   reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReverse(); });
-  bulkBtn.addEventListener('click', runBulk);
 
   var chipRow = document.getElementById('type-chips');
   function updateChipVisibility(name) {

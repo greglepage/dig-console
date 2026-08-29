@@ -1,10 +1,4 @@
-import { resolve, isValidHostname } from "../_lib/dns.js";
-
-// Selectors worth trying without the user having to know their provider.
-const COMMON_SELECTORS = [
-  "google", "selector1", "selector2", "default", "dkim",
-  "protonmail", "protonmail2", "protonmail3", "k1", "k2", "mandrill", "everlytickey1",
-];
+import { resolve, isValidHostname, COMMON_DKIM_SELECTORS } from "../_lib/dns.js";
 
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
@@ -71,7 +65,7 @@ async function checkMx(domain) {
 
 async function checkDkim(domain) {
   const attempts = await Promise.all(
-    COMMON_SELECTORS.map(async (selector) => {
+    COMMON_DKIM_SELECTORS.map(async (selector) => {
       const host = `${selector}._domainkey.${domain}`;
       for (const type of ["CNAME", "TXT"]) {
         try {
