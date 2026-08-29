@@ -8,10 +8,18 @@ export const RESOLVERS = {
   quad9: { label: "Quad9", ip: "9.9.9.9", kind: "wire", url: "https://dns.quad9.net/dns-query" },
 };
 
-const TYPES = { A: 1, NS: 2, CNAME: 5, SOA: 6, MX: 15, TXT: 16, AAAA: 28, SRV: 33, CAA: 257, PTR: 12 };
+const TYPES = {
+  A: 1, NS: 2, CNAME: 5, SOA: 6, MX: 15, TXT: 16, AAAA: 28, SRV: 33, CAA: 257, PTR: 12,
+  RP: 17, SSHFP: 44, LOC: 29, NAPTR: 35, DNAME: 39, CERT: 37, DS: 43, DNSKEY: 48, TLSA: 52, SVCB: 64, HTTPS: 65,
+};
 const TYPE_NAMES = Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [v, k]));
 
 export const RECORD_TYPES = ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA", "SRV", "CAA"];
+
+// Everything else worth asking about — DNSSEC keys, DANE/SSH fingerprints,
+// modern service-binding records, and other less-common but real types.
+export const EXTRA_RECORD_TYPES = ["DNSKEY", "DS", "HTTPS", "SVCB", "TLSA", "NAPTR", "SSHFP", "LOC", "DNAME", "CERT", "RP"];
+export const ALL_RECORD_TYPES = RECORD_TYPES.concat(EXTRA_RECORD_TYPES);
 
 export function isValidHostname(name) {
   return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(name);

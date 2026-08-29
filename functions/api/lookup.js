@@ -1,15 +1,18 @@
-import { resolve, isValidHostname, RECORD_TYPES } from "../_lib/dns.js";
+import { resolve, isValidHostname, RECORD_TYPES, ALL_RECORD_TYPES } from "../_lib/dns.js";
 
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const domain = (url.searchParams.get("domain") || "").trim().toLowerCase();
-  const typesParam = url.searchParams.get("types") || "ALL";
+  const typesParam = url.searchParams.get("types") || "COMMON";
 
   if (!domain || !isValidHostname(domain)) {
     return json({ error: "Enter a valid domain name, e.g. example.com" }, 400);
   }
 
-  const types = typesParam === "ALL" ? RECORD_TYPES : typesParam.split(",").filter((t) => RECORD_TYPES.includes(t));
+  const types =
+    typesParam === "COMMON" ? RECORD_TYPES :
+    typesParam === "ALL" ? ALL_RECORD_TYPES :
+    typesParam.split(",").filter((t) => ALL_RECORD_TYPES.includes(t));
   if (types.length === 0) return json({ error: "No valid record types requested" }, 400);
 
   const results = await Promise.all(

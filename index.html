@@ -505,7 +505,8 @@
       <button class="run-btn" id="run-btn">Run lookup</button>
     </div>
     <div class="chip-row" id="type-chips">
-      <button class="chip active" data-type="ALL">ALL COMMON</button>
+      <button class="chip active" data-type="COMMON">ALL COMMON</button>
+      <button class="chip" data-type="ALL">ALL (incl. DNSSEC, TLSA, HTTPS…)</button>
       <button class="chip" data-type="A">A</button>
       <button class="chip" data-type="AAAA">AAAA</button>
       <button class="chip" data-type="CNAME">CNAME</button>
@@ -671,7 +672,7 @@
   }
   function activeType() {
     var chip = document.querySelector('#type-chips .chip.active');
-    return chip ? chip.dataset.type : 'ALL';
+    return chip ? chip.dataset.type : 'COMMON';
   }
   function el(tag, opts) {
     var node = document.createElement(tag);
@@ -700,7 +701,7 @@
     var raw = document.getElementById('view-raw');
 
     clear(rail); pill(rail, 'loading', 'Querying …');
-    title.textContent = domain + ' — ' + (type === 'ALL' ? 'all common types' : type);
+    title.textContent = domain + ' — ' + (type === 'COMMON' ? 'all common types' : type === 'ALL' ? 'every record type' : type);
     clear(tbody);
     raw.textContent = '';
 
@@ -744,7 +745,8 @@
   async function runPropagation() {
     var token = beginRun('propagation');
     var domain = domainInput.value.trim();
-    var type = activeType() === 'ALL' ? 'A' : activeType();
+    var activeT = activeType();
+    var type = (activeT === 'COMMON' || activeT === 'ALL') ? 'A' : activeT;
     var rail = document.getElementById('prop-rail');
     var title = document.getElementById('prop-title');
     var grid = document.getElementById('prop-grid');
@@ -1053,7 +1055,7 @@
     clear(rail); clear(tbody);
     if (domains.length === 0) { pill(rail, 'warn', 'Enter at least one domain'); return; }
 
-    pill(rail, 'loading', 'Checking ' + domains.length + ' domain' + (domains.length === 1 ? '' : 's') + ' …');
+    pill(rail, 'loading', 'Checked 0 of ' + domains.length + ' …');
     var rows = {};
     domains.forEach(function (d) {
       var tr = el('tr');
@@ -1064,17 +1066,27 @@
       rows[d] = cells;
     });
 
-    var results = await Promise.all(domains.map(checkOneDomain));
-    if (!isCurrent('bulk', token)) return;
-    clear(rail);
-    var goodCount = results.filter(function (r) { return r.a === 'good'; }).length;
-    pill(rail, 'good', goodCount + ' of ' + domains.length + ' resolving');
+    var completed = 0;
+    var goodCount = 0;
+    domains.forEach(function (d) {
+      checkOneDomain(d).then(function (r) {
+        if (!isCurrent('bulk', token)) return;
+        completed++;
+        if (r.a === 'good') goodCount++;
 
-    results.forEach(function (r) {
-      var cells = rows[r.domain];
-      if (!cells) return;
-      ['a', 'spf', 'dkim', 'dmarc', 'mx'].forEach(function (key) {
-        cells[key].appendChild(statusDot(r[key]));
+        var cells = rows[d];
+        if (cells) {
+          ['a', 'spf', 'dkim', 'dmarc', 'mx'].forEach(function (key) {
+            cells[key].appendChild(statusDot(r[key]));
+          });
+        }
+
+        clear(rail);
+        if (completed === domains.length) {
+          pill(rail, 'good', goodCount + ' of ' + domains.length + ' resolved');
+        } else {
+          pill(rail, 'loading', 'Checked ' + completed + ' of ' + domains.length + ' …');
+        }
       });
     });
   }
