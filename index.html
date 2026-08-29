@@ -222,7 +222,10 @@
     overflow-x: auto;
     flex: 1;
     min-width: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .tabs::-webkit-scrollbar { display: none; }
   .export-btn {
     flex: none;
     font-family: "IBM Plex Sans", sans-serif;
@@ -773,7 +776,11 @@
       lastData.propagation = data;
 
       var reachableCount = data.resolvers.filter(function (r) { return !r.error; }).length;
-      if (data.inSync && data.allReachable) {
+      var totalAnswers = data.resolvers.reduce(function (n, r) { return n + (r.answers ? r.answers.length : 0); }, 0);
+      if (data.inSync && data.allReachable && totalAnswers === 0) {
+        pill(rail, 'warn', 'No ' + type + ' record exists');
+        note.textContent = 'All resolvers agree this record doesn\'t exist — that\'s not necessarily a problem. For example, a root domain can never have a CNAME (it would conflict with the required SOA/NS records there); Cloudflare serves A/AAAA directly at the apex instead. Try a different record type if you expected one.';
+      } else if (data.inSync && data.allReachable) {
         pill(rail, 'good', 'In sync across all ' + data.resolvers.length + ' resolvers');
         note.textContent = 'All resolvers returned identical answers — this record has fully propagated.';
       } else if (data.inSync && !data.allReachable) {
