@@ -530,8 +530,8 @@
       <button class="run-btn" id="run-btn">Run lookup</button>
     </div>
     <div class="chip-row" id="type-chips">
-      <button class="chip" data-type="ALL">ALL</button>
-      <button class="chip active" data-type="COMMON">COMMON</button>
+      <button class="chip active" data-type="ALL">ALL</button>
+      <button class="chip" data-type="COMMON">COMMON</button>
       <button class="chip" data-type="A">A</button>
       <button class="chip" data-type="AAAA">AAAA</button>
       <button class="chip" data-type="CNAME">CNAME</button>
@@ -681,7 +681,7 @@
   }
   function activeType() {
     var chip = document.querySelector('#type-chips .chip.active');
-    return chip ? chip.dataset.type : 'COMMON';
+    return chip ? chip.dataset.type : 'ALL';
   }
   function el(tag, opts) {
     var node = document.createElement(tag);
