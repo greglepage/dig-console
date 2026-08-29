@@ -34,6 +34,7 @@ async function queryJson(baseUrl, name, type) {
   const json = await res.json();
   return {
     status: json.Status,
+    ad: !!json.AD,
     answers: (json.Answer || []).map((a) => ({
       name: a.name.replace(/\.$/, ""),
       type: TYPE_NAMES[a.type] || String(a.type),

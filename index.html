@@ -523,6 +523,10 @@
     <button class="tab" data-panel="propagation">Propagation</button>
     <button class="tab" data-panel="email">Email health</button>
     <button class="tab" data-panel="reverse">Reverse DNS</button>
+    <button class="tab" data-panel="whois">WHOIS</button>
+    <button class="tab" data-panel="ssl">SSL / TLS</button>
+    <button class="tab" data-panel="dnssec">DNSSEC</button>
+    <button class="tab" data-panel="bulk">Bulk</button>
   </div>
 
   <!-- ===================== LOOKUP ===================== -->
@@ -594,17 +598,67 @@
     </div>
   </div>
 
-  <div class="roadmap">
-    <div class="roadmap-head">Scoped, not yet built</div>
-    <div class="roadmap-grid">
-      <div class="roadmap-item"><b>WHOIS</b>registrar &amp; expiry date, so renewals stop sneaking up on you</div>
-      <div class="roadmap-item"><b>SSL / TLS</b>cert expiry and chain, checked alongside the DNS</div>
-      <div class="roadmap-item"><b>DNSSEC</b>walks the chain of trust, flags where it breaks</div>
-      <div class="roadmap-item"><b>Bulk / CSV</b>same check run against a whole client list at once</div>
+  <!-- ===================== WHOIS ===================== -->
+  <div class="panel" id="panel-whois">
+    <div class="rail" id="whois-rail"></div>
+    <div class="card">
+      <div class="card-head"><h3 id="whois-title">—</h3></div>
+      <div class="table-scroll">
+        <table class="records kv">
+          <tbody id="whois-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <footer>dig.greglepage.com — Lookup, Propagation, Email health, and Reverse DNS all run live queries against Cloudflare, Google, and Quad9 at request time. Nothing is cached or pre-baked.</footer>
+  <!-- ===================== SSL / TLS ===================== -->
+  <div class="panel" id="panel-ssl">
+    <div class="rail" id="ssl-rail"></div>
+    <div class="card">
+      <div class="card-head"><h3 id="ssl-title">—</h3></div>
+      <div class="table-scroll">
+        <table class="records kv">
+          <tbody id="ssl-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DNSSEC ===================== -->
+  <div class="panel" id="panel-dnssec">
+    <div class="rail" id="dnssec-rail"></div>
+    <div class="card">
+      <div class="card-head"><h3 id="dnssec-title">—</h3></div>
+      <div class="check-list" id="dnssec-checks"></div>
+    </div>
+  </div>
+
+  <!-- ===================== BULK ===================== -->
+  <div class="panel" id="panel-bulk">
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-head"><h3>Domains, one per line</h3></div>
+      <div style="padding: 12px 16px;">
+        <textarea id="bulk-input" class="mono bulk-textarea" spellcheck="false" placeholder="greglepage.com&#10;bitaxe.greglepage.com&#10;mrpotatoe.com">greglepage.com
+bitaxe.greglepage.com
+mrpotatoe.com</textarea>
+        <button class="run-btn" id="bulk-btn" style="margin-top: 10px;">Run bulk check</button>
+      </div>
+    </div>
+    <div class="rail" id="bulk-rail"></div>
+    <div class="card">
+      <div class="card-head"><h3>A record, SPF, DKIM, DMARC, MX at a glance</h3></div>
+      <div class="table-scroll">
+        <table class="records">
+          <thead>
+            <tr><th>Domain</th><th>A</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>MX</th></tr>
+          </thead>
+          <tbody id="bulk-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>dig.greglepage.com — every tab runs live queries at request time. Nothing is cached or pre-baked.</footer>
 
 </div>
 
@@ -613,7 +667,7 @@
   var runBtn = document.getElementById('run-btn');
   var reverseInput = document.getElementById('reverse-input');
   var reverseBtn = document.getElementById('reverse-btn');
-  var loaded = { lookup: false, propagation: false, email: false, reverse: false };
+  var loaded = { lookup: false, propagation: false, email: false, reverse: false, whois: false, ssl: false, dnssec: false, bulk: false };
 
   function activePanelName() {
     return document.querySelector('.tab.active').dataset.panel;
@@ -826,7 +880,179 @@
     }
   }
 
-  var runners = { lookup: runLookup, propagation: runPropagation, email: runEmail };
+  // ---------------- WHOIS ----------------
+  function kvRow(tbody, label, value) {
+    var tr = el('tr');
+    tr.appendChild(el('td', { text: label }));
+    tr.appendChild(el('td', { cls: 'value', text: value }));
+    tbody.appendChild(tr);
+  }
+
+  async function runWhois() {
+    var domain = domainInput.value.trim();
+    var rail = document.getElementById('whois-rail');
+    var title = document.getElementById('whois-title');
+    var tbody = document.getElementById('whois-tbody');
+
+    clear(rail); pill(rail, 'loading', 'Querying registry …');
+    title.textContent = domain + ' — registration';
+    clear(tbody);
+
+    try {
+      var res = await fetch('/api/whois?domain=' + encodeURIComponent(domain));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'WHOIS lookup failed'); return; }
+
+      if (!data.registered) {
+        pill(rail, 'warn', 'Not registered');
+        kvRow(tbody, 'Status', 'No registration found for this domain.');
+        return;
+      }
+
+      var expiresNote = '';
+      if (data.expires) {
+        var days = Math.floor((new Date(data.expires).getTime() - Date.now()) / 86400000);
+        expiresNote = ' (' + days + ' day' + (days === 1 ? '' : 's') + ')';
+        pill(rail, days <= 30 ? 'bad' : days <= 60 ? 'warn' : 'good', days <= 30 ? 'Expires soon' : 'Registered');
+      } else {
+        pill(rail, 'good', 'Registered');
+      }
+
+      if (data.registrar) kvRow(tbody, 'Registrar', data.registrar);
+      if (data.created) kvRow(tbody, 'Created', data.created);
+      if (data.expires) kvRow(tbody, 'Expires', data.expires + expiresNote);
+      if (data.statuses && data.statuses.length) kvRow(tbody, 'Status', data.statuses.join(', '));
+      if (data.nameServers && data.nameServers.length) kvRow(tbody, 'Name servers', data.nameServers.join(', '));
+      if (!data.registrar && !data.created && !data.expires) kvRow(tbody, 'Raw response', data.raw.split('\n').slice(0, 6).join(' / '));
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  // ---------------- SSL / TLS ----------------
+  async function runSsl() {
+    var domain = domainInput.value.trim();
+    var rail = document.getElementById('ssl-rail');
+    var title = document.getElementById('ssl-title');
+    var tbody = document.getElementById('ssl-tbody');
+
+    clear(rail); pill(rail, 'loading', 'Checking certificate transparency logs …');
+    title.textContent = domain + ' — certificate';
+    clear(tbody);
+
+    try {
+      var res = await fetch('/api/ssl?domain=' + encodeURIComponent(domain));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'SSL lookup failed'); return; }
+
+      if (!data.found) {
+        pill(rail, 'warn', 'No certificates found');
+        kvRow(tbody, 'Status', data.summary);
+        return;
+      }
+
+      pill(rail, data.state, data.summary);
+      kvRow(tbody, 'Valid from', new Date(data.notBefore).toLocaleString());
+      kvRow(tbody, 'Valid until', new Date(data.notAfter).toLocaleString());
+      kvRow(tbody, 'Covers', data.sans.join(', '));
+      kvRow(tbody, 'Seen in CT logs', data.recentCertCount + ' certificate' + (data.recentCertCount === 1 ? '' : 's') + ' (all time)');
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  // ---------------- DNSSEC ----------------
+  async function runDnssec() {
+    var domain = domainInput.value.trim();
+    var rail = document.getElementById('dnssec-rail');
+    var title = document.getElementById('dnssec-title');
+    var checks = document.getElementById('dnssec-checks');
+
+    clear(rail); pill(rail, 'loading', 'Walking the chain of trust …');
+    title.textContent = domain + ' — DNSSEC';
+    clear(checks);
+
+    try {
+      var res = await fetch('/api/dnssec?domain=' + encodeURIComponent(domain));
+      var data = await res.json();
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'DNSSEC check failed'); return; }
+
+      pill(rail, data.state, data.state === 'good' ? 'Validating' : data.signed ? 'Broken chain' : 'Not signed');
+
+      checks.appendChild(checkRow('Signed', { state: data.signed ? 'good' : 'warn', summary: data.signed ? data.dnskeyCount + ' DNSKEY record(s) published at the zone apex.' : 'No DNSKEY records published.' }));
+      checks.appendChild(checkRow('Delegated', { state: data.delegated ? 'good' : 'warn', summary: data.delegated ? 'Parent zone has a matching DS record.' : 'No DS record found in the parent zone.' }, data.dsRecords));
+      checks.appendChild(checkRow('Validating', { state: data.validating ? 'good' : 'warn', summary: data.validating ? 'A validating resolver confirms the signatures.' : 'Signatures did not validate.' }));
+    } catch (err) {
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  // ---------------- Bulk ----------------
+  var bulkInput = document.getElementById('bulk-input');
+  var bulkBtn = document.getElementById('bulk-btn');
+
+  function statusDot(cls) {
+    var span = el('span', { cls: 'dot ' + cls });
+    return span;
+  }
+
+  async function checkOneDomain(domain) {
+    var result = { domain: domain, a: 'bad', spf: 'bad', dkim: 'bad', dmarc: 'bad', mx: 'bad' };
+    try {
+      var lookupRes = await fetch('/api/lookup?domain=' + encodeURIComponent(domain) + '&types=A');
+      var lookupData = await lookupRes.json();
+      result.a = lookupRes.ok && lookupData.records.length > 0 ? 'good' : 'bad';
+    } catch { result.a = 'bad'; }
+
+    try {
+      var emailRes = await fetch('/api/email?domain=' + encodeURIComponent(domain));
+      var emailData = await emailRes.json();
+      if (emailRes.ok) {
+        result.spf = emailData.spf.state;
+        result.dkim = emailData.dkim.state;
+        result.dmarc = emailData.dmarc.state;
+        result.mx = emailData.mx.state;
+      }
+    } catch { /* leave as bad */ }
+    return result;
+  }
+
+  async function runBulk() {
+    var domains = bulkInput.value.split('\n').map(function (d) { return d.trim(); }).filter(Boolean);
+    var rail = document.getElementById('bulk-rail');
+    var tbody = document.getElementById('bulk-tbody');
+    clear(rail); clear(tbody);
+    if (domains.length === 0) { pill(rail, 'warn', 'Enter at least one domain'); return; }
+
+    pill(rail, 'loading', 'Checking ' + domains.length + ' domain' + (domains.length === 1 ? '' : 's') + ' …');
+    var rows = {};
+    domains.forEach(function (d) {
+      var tr = el('tr');
+      var cells = { a: el('td'), spf: el('td'), dkim: el('td'), dmarc: el('td'), mx: el('td') };
+      tr.appendChild(el('td', { cls: 'value', text: d }));
+      tr.appendChild(cells.a); tr.appendChild(cells.spf); tr.appendChild(cells.dkim); tr.appendChild(cells.dmarc); tr.appendChild(cells.mx);
+      tbody.appendChild(tr);
+      rows[d] = cells;
+    });
+
+    var results = await Promise.all(domains.map(checkOneDomain));
+    clear(rail);
+    var goodCount = results.filter(function (r) { return r.a === 'good'; }).length;
+    pill(rail, 'good', goodCount + ' of ' + domains.length + ' resolving');
+
+    results.forEach(function (r) {
+      var cells = rows[r.domain];
+      if (!cells) return;
+      ['a', 'spf', 'dkim', 'dmarc', 'mx'].forEach(function (key) {
+        cells[key].appendChild(statusDot(r[key]));
+      });
+    });
+  }
+
+  var runners = { lookup: runLookup, propagation: runPropagation, email: runEmail, whois: runWhois, ssl: runSsl, dnssec: runDnssec };
 
   function runActive() {
     var name = activePanelName();
@@ -837,6 +1063,12 @@
   domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
   reverseBtn.addEventListener('click', function () { loaded.reverse = true; runReverse(); });
   reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { loaded.reverse = true; runReverse(); } });
+  bulkBtn.addEventListener('click', function () { loaded.bulk = true; runBulk(); });
+
+  var chipRow = document.getElementById('type-chips');
+  function updateChipVisibility(name) {
+    chipRow.style.display = (name === 'lookup' || name === 'propagation') ? '' : 'none';
+  }
 
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () {
@@ -845,9 +1077,12 @@
       tab.classList.add('active');
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       var name = tab.dataset.panel;
+      updateChipVisibility(name);
       if (!loaded[name]) {
         loaded[name] = true;
-        if (name === 'reverse') runReverse(); else runners[name] && runners[name]();
+        if (name === 'reverse') runReverse();
+        else if (name === 'bulk') runBulk();
+        else runners[name] && runners[name]();
       }
     });
   });
