@@ -209,13 +209,35 @@
   }
 
   /* ---------- tabs ---------- */
+  .tabs-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-top: 22px;
+    border-bottom: 1px solid var(--line);
+  }
   .tabs {
     display: flex;
     gap: 4px;
-    margin-top: 22px;
-    border-bottom: 1px solid var(--line);
     overflow-x: auto;
+    flex: 1;
+    min-width: 0;
   }
+  .export-btn {
+    flex: none;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px 6px 0 0;
+    padding: 6px 12px;
+    margin-bottom: 1px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .export-btn:hover { color: var(--ink); border-color: var(--signal); }
   .tab {
     font-family: "IBM Plex Sans", sans-serif;
     font-size: 13.5px;
@@ -519,14 +541,17 @@
     </div>
   </div>
 
-  <div class="tabs" role="tablist">
-    <button class="tab active" data-panel="lookup">Lookup</button>
-    <button class="tab" data-panel="propagation">Propagation</button>
-    <button class="tab" data-panel="email">Email health</button>
-    <button class="tab" data-panel="reverse">Reverse DNS</button>
-    <button class="tab" data-panel="whois">WHOIS</button>
-    <button class="tab" data-panel="ssl">SSL / TLS</button>
-    <button class="tab" data-panel="dnssec">DNSSEC</button>
+  <div class="tabs-row">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-panel="lookup">Lookup</button>
+      <button class="tab" data-panel="propagation">Propagation</button>
+      <button class="tab" data-panel="email">Email health</button>
+      <button class="tab" data-panel="reverse">Reverse DNS</button>
+      <button class="tab" data-panel="whois">WHOIS</button>
+      <button class="tab" data-panel="ssl">SSL / TLS</button>
+      <button class="tab" data-panel="dnssec">DNSSEC</button>
+    </div>
+    <button class="export-btn" id="export-btn" title="Export the current view as CSV">Export</button>
   </div>
 
   <!-- ===================== LOOKUP ===================== -->
@@ -642,6 +667,11 @@
   var runBtn = document.getElementById('run-btn');
   var reverseInput = document.getElementById('reverse-input');
   var reverseBtn = document.getElementById('reverse-btn');
+  var exportBtn = document.getElementById('export-btn');
+
+  // Last successful payload per panel, kept around purely so Export has
+  // something to write out without re-querying.
+  var lastData = { lookup: null, propagation: null, email: null, reverse: null, whois: null, ssl: null, dnssec: null };
 
   function activePanelName() {
     return document.querySelector('.tab.active').dataset.panel;
@@ -687,6 +717,7 @@
       if (!isCurrent('lookup', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Lookup failed'); return; }
+      lastData.lookup = data;
 
       pill(rail, data.records.length ? 'good' : 'warn', data.records.length + ' record' + (data.records.length === 1 ? '' : 's') + ' found');
       if (data.errors && data.errors.length) pill(rail, 'warn', data.errors.length + ' resolver warning' + (data.errors.length === 1 ? '' : 's'));
@@ -739,6 +770,7 @@
       if (!isCurrent('propagation', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Propagation check failed'); return; }
+      lastData.propagation = data;
 
       var reachableCount = data.resolvers.filter(function (r) { return !r.error; }).length;
       if (data.inSync && data.allReachable) {
@@ -812,6 +844,7 @@
       if (!isCurrent('email', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Email health check failed'); return; }
+      lastData.email = data;
 
       pill(rail, data.spf.state, 'SPF ' + (data.spf.state === 'good' ? 'pass' : 'warn'));
       pill(rail, data.dkim.state, 'DKIM ' + (data.dkim.state === 'good' ? 'pass — ' + data.dkim.selectors.length + ' selector' + (data.dkim.selectors.length === 1 ? '' : 's') : 'not found'));
@@ -851,6 +884,7 @@
       if (!isCurrent('reverse', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'Reverse lookup failed'); return; }
+      lastData.reverse = data;
 
       if (data.found) {
         pill(rail, 'good', data.hostnames.length + ' PTR record' + (data.hostnames.length === 1 ? '' : 's'));
@@ -899,6 +933,7 @@
       if (!isCurrent('whois', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'WHOIS lookup failed'); return; }
+      lastData.whois = data;
 
       if (!data.registered) {
         pill(rail, 'warn', 'Not registered');
@@ -946,6 +981,7 @@
       if (!isCurrent('ssl', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'SSL lookup failed'); return; }
+      lastData.ssl = data;
 
       if (!data.found) {
         pill(rail, 'warn', 'No certificates found');
@@ -982,6 +1018,7 @@
       if (!isCurrent('dnssec', token)) return;
       clear(rail);
       if (!res.ok) { pill(rail, 'bad', data.error || 'DNSSEC check failed'); return; }
+      lastData.dnssec = data;
 
       pill(rail, data.state, data.state === 'good' ? 'Validating' : data.signed ? 'Broken chain' : 'Not signed');
 
@@ -1005,6 +1042,124 @@
   domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
   reverseBtn.addEventListener('click', runReverse);
   reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReverse(); });
+
+  // ---------------- Export ----------------
+  function csvEscape(val) {
+    val = val === null || val === undefined ? '' : String(val);
+    return /[",\n\r]/.test(val) ? '"' + val.replace(/"/g, '""') + '"' : val;
+  }
+
+  function downloadCsv(filename, rows) {
+    var csv = rows.map(function (row) { return row.map(csvEscape).join(','); }).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function flashExportButton(message) {
+    var original = exportBtn.textContent;
+    exportBtn.textContent = message;
+    setTimeout(function () { exportBtn.textContent = original; }, 1600);
+  }
+
+  var exporters = {
+    lookup: function () {
+      var data = lastData.lookup;
+      if (!data) return false;
+      var rows = [['Name', 'Type', 'TTL', 'Value']];
+      data.records.forEach(function (r) { rows.push([r.name, r.type, r.ttl, r.data]); });
+      downloadCsv('dig-lookup-' + data.domain + '.csv', rows);
+      return true;
+    },
+    propagation: function () {
+      var data = lastData.propagation;
+      if (!data) return false;
+      var rows = [['Resolver', 'IP', 'Answer']];
+      data.resolvers.forEach(function (r) {
+        if (r.error) rows.push([r.label, r.ip, 'Error: ' + r.error]);
+        else if (r.answers.length === 0) rows.push([r.label, r.ip, 'No answer']);
+        else r.answers.forEach(function (a) { rows.push([r.label, r.ip, a.data]); });
+      });
+      downloadCsv('dig-propagation-' + data.domain + '-' + data.type + '.csv', rows);
+      return true;
+    },
+    email: function () {
+      var data = lastData.email;
+      if (!data) return false;
+      var rows = [['Check', 'State', 'Summary', 'Detail']];
+      rows.push(['SPF', data.spf.state, data.spf.summary, data.spf.record || '']);
+      rows.push(['DKIM', data.dkim.state, data.dkim.summary, data.dkim.selectors.map(function (s) { return s.selector + ' -> ' + s.target; }).join(' | ')]);
+      rows.push(['DMARC', data.dmarc.state, data.dmarc.summary, data.dmarc.record || '']);
+      rows.push(['MX', data.mx.state, data.mx.summary, data.mx.records.join(' | ')]);
+      downloadCsv('dig-email-' + data.domain + '.csv', rows);
+      return true;
+    },
+    reverse: function () {
+      var data = lastData.reverse;
+      if (!data) return false;
+      var rows = [['IP', 'Result']];
+      if (data.found) data.hostnames.forEach(function (h) { rows.push([data.ip, h]); });
+      else rows.push([data.ip, data.summary]);
+      downloadCsv('dig-reverse-' + data.ip + '.csv', rows);
+      return true;
+    },
+    whois: function () {
+      var data = lastData.whois;
+      if (!data) return false;
+      var rows = [['Field', 'Value']];
+      if (!data.registered) {
+        rows.push(['Status', 'Not registered']);
+      } else {
+        if (data.registrar) rows.push(['Registrar', data.registrar]);
+        if (data.created) rows.push(['Created', data.created]);
+        if (data.expires) rows.push(['Expires', data.expires]);
+        if (data.statuses && data.statuses.length) rows.push(['Status', data.statuses.join(' | ')]);
+        if (data.nameServers && data.nameServers.length) rows.push(['Name servers', data.nameServers.join(' | ')]);
+        rows.push(['DNSSEC', data.dnssecSigned ? 'Delegation signed' : 'Not signed']);
+      }
+      downloadCsv('dig-whois-' + data.domain + '.csv', rows);
+      return true;
+    },
+    ssl: function () {
+      var data = lastData.ssl;
+      if (!data) return false;
+      var rows = [['Field', 'Value']];
+      rows.push(['Status', data.summary]);
+      if (data.found) {
+        rows.push(['Valid from', data.notBefore]);
+        rows.push(['Valid until', data.notAfter]);
+        rows.push(['Covers', data.sans.join(' | ')]);
+        rows.push(['Seen in CT logs', data.recentCertCount]);
+      }
+      downloadCsv('dig-ssl-' + data.domain + '.csv', rows);
+      return true;
+    },
+    dnssec: function () {
+      var data = lastData.dnssec;
+      if (!data) return false;
+      var rows = [['Check', 'Result']];
+      rows.push(['Overall', data.summary]);
+      rows.push(['Signed', data.signed ? data.dnskeyCount + ' DNSKEY record(s)' : 'No']);
+      rows.push(['Delegated', data.delegated ? 'Yes' : 'No']);
+      rows.push(['Validating', data.validating ? 'Yes' : 'No']);
+      if (data.dsRecords && data.dsRecords.length) rows.push(['DS records', data.dsRecords.join(' | ')]);
+      downloadCsv('dig-dnssec-' + data.domain + '.csv', rows);
+      return true;
+    },
+  };
+
+  exportBtn.addEventListener('click', function () {
+    var name = activePanelName();
+    var exporter = exporters[name];
+    var didExport = exporter && exporter();
+    if (!didExport) flashExportButton('Nothing to export yet');
+  });
 
   var chipRow = document.getElementById('type-chips');
   function updateChipVisibility(name) {
