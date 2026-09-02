@@ -558,6 +558,7 @@
       <button class="tab" data-panel="ssl">SSL / TLS</button>
       <button class="tab" data-panel="dnssec">DNSSEC</button>
     </div>
+    <button class="export-btn" id="copy-link-btn" title="Copy a link straight to this domain, tab, and record type">Copy link</button>
     <button class="export-btn" id="export-btn" title="Export the current view as CSV">Export</button>
   </div>
 
@@ -574,7 +575,7 @@
         </div>
       </div>
 
-      <div class="table-scroll" id="view-table">
+      <div class="table-scroll" id="view-table" data-view-table>
         <table class="records">
           <thead>
             <tr><th>Name</th><th>Type</th><th>TTL</th><th>Value</th></tr>
@@ -583,7 +584,7 @@
         </table>
       </div>
 
-      <pre class="raw" id="view-raw" style="display:none;"></pre>
+      <pre class="raw" id="view-raw" data-view-raw style="display:none;"></pre>
       <div class="note" id="lookup-note"></div>
     </div>
   </div>
@@ -594,8 +595,15 @@
     <div class="card">
       <div class="card-head">
         <h3 id="prop-title">Enter a domain above, then run a lookup</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Table</button>
+          <button data-view="raw">Raw dig</button>
+        </div>
       </div>
-      <div class="resolver-grid" id="prop-grid"></div>
+      <div data-view-table>
+        <div class="resolver-grid" id="prop-grid"></div>
+      </div>
+      <pre class="raw" id="prop-raw" data-view-raw style="display:none;"></pre>
       <div class="note" id="prop-note">Propagation uses whichever record type is selected above (defaults to A when "all common" is selected).</div>
     </div>
   </div>
@@ -604,8 +612,17 @@
   <div class="panel" id="panel-email">
     <div class="rail" id="email-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="email-title">Enter a domain above, then run a lookup</h3></div>
-      <div class="check-list" id="email-checks"></div>
+      <div class="card-head">
+        <h3 id="email-title">Enter a domain above, then run a lookup</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Checks</button>
+          <button data-view="raw">Raw dig</button>
+        </div>
+      </div>
+      <div data-view-table>
+        <div class="check-list" id="email-checks"></div>
+      </div>
+      <pre class="raw" id="email-raw" data-view-raw style="display:none;"></pre>
     </div>
   </div>
 
@@ -620,13 +637,22 @@
     </div>
     <div class="rail" id="reverse-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="reverse-title">Enter an IPv4 address above, then run a reverse lookup</h3></div>
-      <div class="table-scroll">
-        <table class="records">
-          <thead><tr><th>Query</th><th>Result</th></tr></thead>
-          <tbody id="reverse-tbody"></tbody>
-        </table>
+      <div class="card-head">
+        <h3 id="reverse-title">Enter an IPv4 address above, then run a reverse lookup</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Table</button>
+          <button data-view="raw">Raw dig</button>
+        </div>
       </div>
+      <div data-view-table>
+        <div class="table-scroll">
+          <table class="records">
+            <thead><tr><th>Query</th><th>Result</th></tr></thead>
+            <tbody id="reverse-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <pre class="raw" id="reverse-raw" data-view-raw style="display:none;"></pre>
       <div class="note" id="reverse-note"></div>
     </div>
   </div>
@@ -635,12 +661,21 @@
   <div class="panel" id="panel-whois">
     <div class="rail" id="whois-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="whois-title">Enter a domain above, then run a lookup</h3></div>
-      <div class="table-scroll">
-        <table class="records kv">
-          <tbody id="whois-tbody"></tbody>
-        </table>
+      <div class="card-head">
+        <h3 id="whois-title">Enter a domain above, then run a lookup</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Table</button>
+          <button data-view="raw">Raw RDAP</button>
+        </div>
       </div>
+      <div data-view-table>
+        <div class="table-scroll">
+          <table class="records kv">
+            <tbody id="whois-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <pre class="raw" id="whois-raw" data-view-raw style="display:none;"></pre>
     </div>
   </div>
 
@@ -648,12 +683,21 @@
   <div class="panel" id="panel-ssl">
     <div class="rail" id="ssl-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="ssl-title">Enter a domain above, then run a lookup</h3></div>
-      <div class="table-scroll">
-        <table class="records kv">
-          <tbody id="ssl-tbody"></tbody>
-        </table>
+      <div class="card-head">
+        <h3 id="ssl-title">Enter a domain above, then run a lookup</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Table</button>
+          <button data-view="raw">Raw CT log entry</button>
+        </div>
       </div>
+      <div data-view-table>
+        <div class="table-scroll">
+          <table class="records kv">
+            <tbody id="ssl-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <pre class="raw" id="ssl-raw" data-view-raw style="display:none;"></pre>
     </div>
   </div>
 
@@ -661,8 +705,17 @@
   <div class="panel" id="panel-dnssec">
     <div class="rail" id="dnssec-rail"></div>
     <div class="card">
-      <div class="card-head"><h3 id="dnssec-title">Enter a domain above, then run a lookup</h3></div>
-      <div class="check-list" id="dnssec-checks"></div>
+      <div class="card-head">
+        <h3 id="dnssec-title">Enter a domain above, then run a lookup</h3>
+        <div class="toggle">
+          <button class="active" data-view="table">Checks</button>
+          <button data-view="raw">Raw dig</button>
+        </div>
+      </div>
+      <div data-view-table>
+        <div class="check-list" id="dnssec-checks"></div>
+      </div>
+      <pre class="raw" id="dnssec-raw" data-view-raw style="display:none;"></pre>
     </div>
   </div>
 
@@ -676,6 +729,7 @@
   var reverseInput = document.getElementById('reverse-input');
   var reverseBtn = document.getElementById('reverse-btn');
   var exportBtn = document.getElementById('export-btn');
+  var copyLinkBtn = document.getElementById('copy-link-btn');
 
   // Last successful payload per panel, kept around purely so Export has
   // something to write out without re-querying.
@@ -688,6 +742,46 @@
     var chip = document.querySelector('#type-chips .chip.active');
     return chip ? chip.dataset.type : 'ALL';
   }
+
+  // ---------------- Shareable URLs ----------------
+  // Keeps the address bar in sync with domain/IP + tab + record type, so
+  // copying the URL (or just hitting browser refresh) reproduces this exact view.
+  function updateUrl() {
+    var name = activePanelName();
+    var params = new URLSearchParams();
+    params.set('tab', name);
+    if (name === 'reverse') {
+      var ip = reverseInput.value.trim();
+      if (ip) params.set('ip', ip);
+    } else {
+      var domain = domainInput.value.trim();
+      if (domain) params.set('domain', domain);
+      if (name === 'lookup' || name === 'propagation') params.set('type', activeType());
+    }
+    var qs = params.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); resolve(); }
+      catch (err) { reject(err); }
+      finally { document.body.removeChild(ta); }
+    });
+  }
+
+  function flashButton(btn, message) {
+    var original = btn.textContent;
+    btn.textContent = message;
+    setTimeout(function () { btn.textContent = original; }, 1600);
+  }
   function el(tag, opts) {
     var node = document.createElement(tag);
     opts = opts || {};
@@ -697,6 +791,14 @@
   }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function pill(container, cls, text) { container.appendChild(el('span', { cls: 'pill ' + cls, text: text })); }
+  function digLine(name, ttl, type, data) {
+    var owner = name + '.';
+    owner = owner.length < 30 ? owner.padEnd(30) : owner + ' ';
+    return owner + String(ttl).padEnd(8) + 'IN'.padEnd(4) + type.padEnd(7) + data;
+  }
+  function reverseArpaName(ip) {
+    return ip.split('.').reverse().join('.') + '.in-addr.arpa';
+  }
 
   // Guards against a slower earlier request overwriting a faster later one
   // (e.g. user changes the domain and re-runs before the first query returns).
@@ -756,9 +858,7 @@
         : '';
 
       var header = '; <<>> dig +noall +answer ' + domain + ' ' + type + '\n';
-      var lines = data.records.map(function (r) {
-        return (r.name + '.').padEnd(30) + String(r.ttl).padEnd(8) + 'IN'.padEnd(4) + r.type.padEnd(7) + r.data;
-      });
+      var lines = data.records.map(function (r) { return digLine(r.name, r.ttl, r.type, r.data); });
       raw.textContent = header + lines.join('\n');
     } catch (err) {
       if (!isCurrent('lookup', token)) return;
@@ -776,10 +876,12 @@
     var title = document.getElementById('prop-title');
     var grid = document.getElementById('prop-grid');
     var note = document.getElementById('prop-note');
+    var raw = document.getElementById('prop-raw');
 
     clear(rail); pill(rail, 'loading', 'Querying 3 resolvers …');
     title.textContent = domain + ' — ' + type + ' record, queried simultaneously';
     clear(grid);
+    raw.textContent = '';
 
     try {
       var res = await fetch('/api/propagation?domain=' + encodeURIComponent(domain) + '&type=' + encodeURIComponent(type));
@@ -825,6 +927,16 @@
         col.appendChild(ul);
         grid.appendChild(col);
       });
+
+      var rawLines = ['; <<>> dig +noall +answer ' + domain + ' ' + type + '  (queried against every resolver)\n'];
+      data.resolvers.forEach(function (r) {
+        rawLines.push(';; @' + r.ip + ' (' + r.label + ')');
+        if (r.error) rawLines.push(';; connection failed: ' + r.error);
+        else if (r.answers.length === 0) rawLines.push(';; no answer');
+        else r.answers.forEach(function (a) { rawLines.push(digLine(a.name, a.ttl, a.type, a.data)); });
+        rawLines.push('');
+      });
+      raw.textContent = rawLines.join('\n').trim();
     } catch (err) {
       if (!isCurrent('propagation', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
@@ -854,10 +966,12 @@
     var rail = document.getElementById('email-rail');
     var title = document.getElementById('email-title');
     var checks = document.getElementById('email-checks');
+    var raw = document.getElementById('email-raw');
 
     clear(rail); pill(rail, 'loading', 'Checking SPF, DKIM, DMARC, MX …');
     title.textContent = domain + ' — email deliverability';
     clear(checks);
+    raw.textContent = '';
 
     try {
       var res = await fetch('/api/email?domain=' + encodeURIComponent(domain));
@@ -880,6 +994,22 @@
       ));
       checks.appendChild(checkRow('DMARC', data.dmarc, data.dmarc.record ? [data.dmarc.record] : []));
       checks.appendChild(checkRow('MX', data.mx, data.mx.records));
+
+      var rawLines = [];
+      rawLines.push('; <<>> dig +noall +answer ' + domain + ' TXT  (SPF)');
+      rawLines.push(data.spf.record ? digLine(domain, data.spf.ttl, 'TXT', data.spf.record) : ';; no SPF record found');
+      rawLines.push('');
+      rawLines.push('; <<>> dig +noall +answer _dmarc.' + domain + ' TXT  (DMARC)');
+      rawLines.push(data.dmarc.record ? digLine('_dmarc.' + domain, data.dmarc.ttl, 'TXT', data.dmarc.record) : ';; no DMARC record found');
+      rawLines.push('');
+      rawLines.push('; <<>> dig +noall +answer ' + domain + ' MX');
+      if (data.mx.rawRecords && data.mx.rawRecords.length) data.mx.rawRecords.forEach(function (r) { rawLines.push(digLine(domain, r.ttl, 'MX', r.data)); });
+      else rawLines.push(';; no MX records found');
+      rawLines.push('');
+      rawLines.push('; <<>> dig +noall +answer *._domainkey.' + domain + '  (DKIM, common selectors)');
+      if (data.dkim.selectors.length) data.dkim.selectors.forEach(function (s) { rawLines.push(digLine(s.selector + '._domainkey.' + domain, s.ttl, s.type, s.target)); });
+      else rawLines.push(';; no DKIM selector found among common providers');
+      raw.textContent = rawLines.join('\n');
     } catch (err) {
       if (!isCurrent('email', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
@@ -894,10 +1024,11 @@
     var title = document.getElementById('reverse-title');
     var tbody = document.getElementById('reverse-tbody');
     var note = document.getElementById('reverse-note');
+    var raw = document.getElementById('reverse-raw');
 
     clear(rail); pill(rail, 'loading', 'Querying …');
     title.textContent = ip + ' → PTR';
-    clear(tbody); note.textContent = '';
+    clear(tbody); note.textContent = ''; raw.textContent = '';
 
     try {
       var res = await fetch('/api/reverse?ip=' + encodeURIComponent(ip));
@@ -923,6 +1054,11 @@
         tbody.appendChild(tr);
         note.textContent = 'A missing PTR is common for shared or CDN-fronted IP addresses — it only tends to matter when this exact IP is sending mail directly.';
       }
+
+      var rawLines = ['; <<>> dig +noall +answer -x ' + ip];
+      if (data.found) data.rawAnswers.forEach(function (a) { rawLines.push(digLine(a.name, a.ttl, 'PTR', a.data)); });
+      else rawLines.push(';; ' + reverseArpaName(ip) + '  ;; ' + data.summary);
+      raw.textContent = rawLines.join('\n');
     } catch (err) {
       if (!isCurrent('reverse', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
@@ -943,10 +1079,11 @@
     var rail = document.getElementById('whois-rail');
     var title = document.getElementById('whois-title');
     var tbody = document.getElementById('whois-tbody');
+    var raw = document.getElementById('whois-raw');
 
     clear(rail); pill(rail, 'loading', 'Querying registry …');
     title.textContent = domain + ' — registration';
-    clear(tbody);
+    clear(tbody); raw.textContent = '';
 
     try {
       var res = await fetch('/api/whois?domain=' + encodeURIComponent(domain));
@@ -959,6 +1096,7 @@
       if (!data.registered) {
         pill(rail, 'warn', 'Not registered');
         kvRow(tbody, 'Status', 'No registration found for this domain.');
+        raw.textContent = ';; RDAP lookup for ' + domain + ' returned 404 — no registration record found.';
         return;
       }
 
@@ -978,6 +1116,8 @@
       if (data.nameServers && data.nameServers.length) kvRow(tbody, 'Name servers', data.nameServers.join(', '));
       kvRow(tbody, 'DNSSEC', data.dnssecSigned ? 'Delegation signed' : 'Not signed');
       if (!data.registrar && !data.created && !data.expires) kvRow(tbody, 'Note', 'Registry returned limited detail for this domain.');
+
+      raw.textContent = JSON.stringify(data.raw, null, 2);
     } catch (err) {
       if (!isCurrent('whois', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
@@ -991,10 +1131,11 @@
     var rail = document.getElementById('ssl-rail');
     var title = document.getElementById('ssl-title');
     var tbody = document.getElementById('ssl-tbody');
+    var raw = document.getElementById('ssl-raw');
 
     clear(rail); pill(rail, 'loading', 'Checking certificate transparency logs …');
     title.textContent = domain + ' — certificate';
-    clear(tbody);
+    clear(tbody); raw.textContent = '';
 
     try {
       var res = await fetch('/api/ssl?domain=' + encodeURIComponent(domain));
@@ -1007,6 +1148,7 @@
       if (!data.found) {
         pill(rail, 'warn', 'No certificates found');
         kvRow(tbody, 'Status', data.summary);
+        raw.textContent = ';; no certificates found in public transparency logs for ' + domain;
         return;
       }
 
@@ -1015,6 +1157,8 @@
       kvRow(tbody, 'Valid until', new Date(data.notAfter).toLocaleString());
       kvRow(tbody, 'Covers', data.sans.join(', '));
       kvRow(tbody, 'Seen in CT logs', data.recentCertCount + ' certificate' + (data.recentCertCount === 1 ? '' : 's') + ' (all time)');
+
+      raw.textContent = JSON.stringify(data.raw, null, 2);
     } catch (err) {
       if (!isCurrent('ssl', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
@@ -1028,10 +1172,11 @@
     var rail = document.getElementById('dnssec-rail');
     var title = document.getElementById('dnssec-title');
     var checks = document.getElementById('dnssec-checks');
+    var raw = document.getElementById('dnssec-raw');
 
     clear(rail); pill(rail, 'loading', 'Walking the chain of trust …');
     title.textContent = domain + ' — DNSSEC';
-    clear(checks);
+    clear(checks); raw.textContent = '';
 
     try {
       var res = await fetch('/api/dnssec?domain=' + encodeURIComponent(domain));
@@ -1046,6 +1191,18 @@
       checks.appendChild(checkRow('Signed', { state: data.signed ? 'good' : 'warn', summary: data.signed ? data.dnskeyCount + ' DNSKEY record(s) published at the zone apex.' : 'No DNSKEY records published.' }));
       checks.appendChild(checkRow('Delegated', { state: data.delegated ? 'good' : 'warn', summary: data.delegated ? 'Parent zone has a matching DS record.' : 'No DS record found in the parent zone.' }, data.dsRecords));
       checks.appendChild(checkRow('Validating', { state: data.validating ? 'good' : 'warn', summary: data.validating ? 'A validating resolver confirms the signatures.' : 'Signatures did not validate.' }));
+
+      var rawLines = [];
+      rawLines.push('; <<>> dig +noall +answer ' + domain + ' DNSKEY');
+      if (data.dnskeyRecords && data.dnskeyRecords.length) data.dnskeyRecords.forEach(function (r) { rawLines.push(digLine(domain, r.ttl, 'DNSKEY', r.data)); });
+      else rawLines.push(';; no DNSKEY records published');
+      rawLines.push('');
+      rawLines.push('; <<>> dig +noall +answer ' + domain + ' DS');
+      if (data.dsRawRecords && data.dsRawRecords.length) data.dsRawRecords.forEach(function (r) { rawLines.push(digLine(domain, r.ttl, 'DS', r.data)); });
+      else rawLines.push(';; no DS record found in the parent zone');
+      rawLines.push('');
+      rawLines.push(';; ad flag on ' + domain + ' A query: ' + (data.apexAd ? 'set (validating)' : 'not set'));
+      raw.textContent = rawLines.join('\n');
     } catch (err) {
       if (!isCurrent('dnssec', token)) return;
       clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
@@ -1056,13 +1213,19 @@
 
   function runActive() {
     var name = activePanelName();
+    updateUrl();
     if (runners[name]) runners[name]();
+  }
+
+  function runReverseAndShare() {
+    updateUrl();
+    runReverse();
   }
 
   runBtn.addEventListener('click', runActive);
   domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
-  reverseBtn.addEventListener('click', runReverse);
-  reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReverse(); });
+  reverseBtn.addEventListener('click', runReverseAndShare);
+  reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReverseAndShare(); });
 
   // ---------------- Export ----------------
   function csvEscape(val) {
@@ -1081,12 +1244,6 @@
     a.click();
     document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  }
-
-  function flashExportButton(message) {
-    var original = exportBtn.textContent;
-    exportBtn.textContent = message;
-    setTimeout(function () { exportBtn.textContent = original; }, 1600);
   }
 
   var exporters = {
@@ -1179,7 +1336,15 @@
     var name = activePanelName();
     var exporter = exporters[name];
     var didExport = exporter && exporter();
-    if (!didExport) flashExportButton('Nothing to export yet');
+    if (!didExport) flashButton(exportBtn, 'Nothing to export yet');
+  });
+
+  copyLinkBtn.addEventListener('click', function () {
+    updateUrl();
+    copyText(location.href).then(
+      function () { flashButton(copyLinkBtn, 'Copied!'); },
+      function () { flashButton(copyLinkBtn, 'Copy failed'); }
+    );
   });
 
   var chipRow = document.getElementById('type-chips');
@@ -1194,6 +1359,7 @@
       tab.classList.add('active');
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       updateChipVisibility(tab.dataset.panel);
+      updateUrl();
     });
   });
 
@@ -1202,21 +1368,57 @@
       chip.parentElement.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
       chip.classList.add('active');
       var name = activePanelName();
+      updateUrl();
       if (name === 'lookup' || name === 'propagation') runners[name]();
     });
   });
 
   document.querySelectorAll('.toggle').forEach(function (toggle) {
+    var card = toggle.closest('.card');
+    var table = card.querySelector('[data-view-table]');
+    var raw = card.querySelector('[data-view-raw]');
     toggle.querySelectorAll('button').forEach(function (btn) {
       btn.addEventListener('click', function () {
         toggle.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
-        var table = document.getElementById('view-table');
-        var raw = document.getElementById('view-raw');
         if (btn.dataset.view === 'raw') { table.style.display = 'none'; raw.style.display = 'block'; }
         else { table.style.display = ''; raw.style.display = 'none'; }
       });
     });
   });
 
+  // ---------------- Restore a shared link ----------------
+  (function initFromUrl() {
+    var params = new URLSearchParams(location.search);
+    var tab = params.get('tab');
+    var domain = params.get('domain');
+    var ip = params.get('ip');
+    var type = params.get('type');
+
+    if (domain) domainInput.value = domain;
+    if (ip) reverseInput.value = ip;
+
+    if (type) {
+      var chip = Array.prototype.find.call(document.querySelectorAll('#type-chips .chip'), function (c) { return c.dataset.type === type.toUpperCase(); });
+      if (chip) {
+        document.querySelectorAll('#type-chips .chip').forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+      }
+    }
+
+    if (tab) {
+      var tabBtn = Array.prototype.find.call(document.querySelectorAll('.tab'), function (t) { return t.dataset.panel === tab; });
+      if (tabBtn) {
+        document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+        document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+        tabBtn.classList.add('active');
+        document.getElementById('panel-' + tab).classList.add('active');
+        updateChipVisibility(tab);
+      }
+    }
+
+    var name = activePanelName();
+    if (name === 'reverse') { if (ip) runReverse(); }
+    else if (domain) { runActive(); }
+  })();
 </script>

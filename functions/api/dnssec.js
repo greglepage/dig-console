@@ -43,6 +43,9 @@ export async function onRequestGet({ request }) {
       validating,
       dnskeyCount: dnskey.answers.length,
       dsRecords: ds.answers.map((a) => a.data),
+      dnskeyRecords: dnskey.answers.map((a) => ({ ttl: a.ttl, data: a.data })),
+      dsRawRecords: ds.answers.map((a) => ({ ttl: a.ttl, data: a.data })),
+      apexAd: apex.ad,
     });
   } catch (err) {
     return json({ error: `DNSSEC check failed: ${err.message || err}` }, 502);

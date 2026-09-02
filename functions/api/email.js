@@ -28,6 +28,7 @@ async function checkSpf(domain) {
       state: endsAll ? "good" : "warn",
       summary: endsAll ? "SPF record found and terminated correctly." : "SPF record found but doesn't end in an all mechanism — some senders may be missed.",
       record: record.data,
+      ttl: record.ttl,
     };
   } catch (err) {
     return { state: "warn", summary: `SPF lookup failed: ${err.message || err}`, record: null };
@@ -42,12 +43,12 @@ async function checkDmarc(domain) {
     const policy = /p=(\w+)/i.exec(record.data)?.[1] || "none";
     const hasRua = /rua=/i.test(record.data);
     if (policy === "none") {
-      return { state: "warn", summary: "DMARC is present but in monitor-only mode (p=none) — nothing is actually blocked yet.", record: record.data };
+      return { state: "warn", summary: "DMARC is present but in monitor-only mode (p=none) — nothing is actually blocked yet.", record: record.data, ttl: record.ttl };
     }
     if (!hasRua) {
-      return { state: "warn", summary: `Policy is enforcing (p=${policy}), but there's no rua= tag, so failures are never reported back to you.`, record: record.data };
+      return { state: "warn", summary: `Policy is enforcing (p=${policy}), but there's no rua= tag, so failures are never reported back to you.`, record: record.data, ttl: record.ttl };
     }
-    return { state: "good", summary: `Enforcing (p=${policy}) with aggregate reporting configured.`, record: record.data };
+    return { state: "good", summary: `Enforcing (p=${policy}) with aggregate reporting configured.`, record: record.data, ttl: record.ttl };
   } catch (err) {
     return { state: "warn", summary: `DMARC lookup failed: ${err.message || err}`, record: null };
   }
@@ -57,7 +58,12 @@ async function checkMx(domain) {
   try {
     const { answers } = await resolve("cloudflare", domain, "MX");
     if (answers.length === 0) return { state: "warn", summary: "No MX records — this domain can't receive mail.", records: [] };
-    return { state: "good", summary: `${answers.length} mail exchanger${answers.length > 1 ? "s" : ""} found.`, records: answers.map((a) => a.data) };
+    return {
+      state: "good",
+      summary: `${answers.length} mail exchanger${answers.length > 1 ? "s" : ""} found.`,
+      records: answers.map((a) => a.data),
+      rawRecords: answers.map((a) => ({ ttl: a.ttl, data: a.data })),
+    };
   } catch (err) {
     return { state: "warn", summary: `MX lookup failed: ${err.message || err}`, records: [] };
   }
@@ -70,7 +76,7 @@ async function checkDkim(domain) {
       for (const type of ["CNAME", "TXT"]) {
         try {
           const { answers } = await resolve("cloudflare", host, type);
-          if (answers.length > 0) return { selector, type, target: answers[0].data };
+          if (answers.length > 0) return { selector, type, target: answers[0].data, ttl: answers[0].ttl };
         } catch {
           // try the next type / selector
         }

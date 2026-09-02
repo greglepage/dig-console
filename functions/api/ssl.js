@@ -57,6 +57,7 @@ export async function onRequestGet({ request }) {
       notAfter: chosen.not_after,
       sans: chosen.dns_names || [],
       recentCertCount: issuances.length,
+      raw: chosen,
     });
   } catch (err) {
     return json({ error: `SSL lookup failed: ${err.message || err}` }, 502);

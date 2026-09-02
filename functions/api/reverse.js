@@ -19,7 +19,12 @@ export async function onRequestGet({ request }) {
           : "No PTR record returned for this IP.",
       });
     }
-    return json({ ip, found: true, hostnames: answers.map((a) => a.data) });
+    return json({
+      ip,
+      found: true,
+      hostnames: answers.map((a) => a.data),
+      rawAnswers: answers.map((a) => ({ name: a.name, ttl: a.ttl, data: a.data })),
+    });
   } catch (err) {
     return json({ error: `Reverse lookup failed: ${err.message || err}` }, 502);
   }

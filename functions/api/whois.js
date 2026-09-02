@@ -59,6 +59,7 @@ export async function onRequestGet({ request }) {
       statuses: data.status || [],
       nameServers,
       dnssecSigned: !!data.secureDNS?.delegationSigned,
+      raw: data,
     });
   } catch (err) {
     return json({ error: `WHOIS lookup failed: ${err.message || err}` }, 502);
