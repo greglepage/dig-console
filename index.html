@@ -1,3 +1,4 @@
+<html data-theme="dark">
 <title>dig console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -557,6 +558,7 @@
       <button class="tab" data-panel="whois">WHOIS</button>
       <button class="tab" data-panel="ssl">SSL / TLS</button>
       <button class="tab" data-panel="dnssec">DNSSEC</button>
+      <button class="tab" data-panel="reach">Port check</button>
     </div>
     <button class="export-btn" id="copy-link-btn" title="Copy a link straight to this domain, tab, and record type">Copy link</button>
     <button class="export-btn" id="export-btn" title="Export the current view as CSV">Export</button>
@@ -719,6 +721,28 @@
     </div>
   </div>
 
+  <!-- ===================== PORT CHECK ===================== -->
+  <div class="panel" id="panel-reach">
+    <div class="command" style="margin-bottom: 16px;">
+      <div class="command-row">
+        <span class="prompt-glyph">&gt;</span>
+        <input class="command-input mono" id="reach-custom-port" type="number" min="1" max="65535" step="1" placeholder="Port, e.g. 443 or 3389" style="flex: 0 1 220px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); white-space:nowrap; flex: none;">
+          <input type="checkbox" id="reach-custom-tls"> TLS handshake
+        </label>
+        <button class="run-btn" id="reach-custom-btn">Check port</button>
+      </div>
+    </div>
+    <div class="rail" id="reach-custom-rail"></div>
+    <div class="card">
+      <div class="card-head">
+        <h3 id="reach-title">Enter a port above, then run a check</h3>
+      </div>
+      <div class="check-list" id="reach-custom-result"></div>
+      <div class="note">Only ever tests your own current public IP — it can't be pointed at anyone else's address.</div>
+    </div>
+  </div>
+
   <footer>dig.greglepage.com — every tab runs live queries at request time. Nothing is cached or pre-baked.</footer>
 
 </div>
@@ -728,12 +752,15 @@
   var runBtn = document.getElementById('run-btn');
   var reverseInput = document.getElementById('reverse-input');
   var reverseBtn = document.getElementById('reverse-btn');
+  var reachCustomPort = document.getElementById('reach-custom-port');
+  var reachCustomTls = document.getElementById('reach-custom-tls');
+  var reachCustomBtn = document.getElementById('reach-custom-btn');
   var exportBtn = document.getElementById('export-btn');
   var copyLinkBtn = document.getElementById('copy-link-btn');
 
   // Last successful payload per panel, kept around purely so Export has
   // something to write out without re-querying.
-  var lastData = { lookup: null, propagation: null, email: null, reverse: null, whois: null, ssl: null, dnssec: null };
+  var lastData = { lookup: null, propagation: null, email: null, reverse: null, whois: null, ssl: null, dnssec: null, reach: null };
 
   function activePanelName() {
     return document.querySelector('.tab.active').dataset.panel;
@@ -753,6 +780,10 @@
     if (name === 'reverse') {
       var ip = reverseInput.value.trim();
       if (ip) params.set('ip', ip);
+    } else if (name === 'reach') {
+      var reachPort = reachCustomPort.value.trim();
+      if (reachPort) params.set('port', reachPort);
+      if (reachCustomTls.checked) params.set('tls', '1');
     } else {
       var domain = domainInput.value.trim();
       if (domain) params.set('domain', domain);
@@ -802,7 +833,7 @@
 
   // Guards against a slower earlier request overwriting a faster later one
   // (e.g. user changes the domain and re-runs before the first query returns).
-  var seq = { lookup: 0, propagation: 0, email: 0, reverse: 0, whois: 0, ssl: 0, dnssec: 0 };
+  var seq = { lookup: 0, propagation: 0, email: 0, reverse: 0, whois: 0, ssl: 0, dnssec: 0, reach: 0, reachCustom: 0 };
   function beginRun(key) { return ++seq[key]; }
   function isCurrent(key, token) { return seq[key] === token; }
 
@@ -1209,6 +1240,55 @@
     }
   }
 
+  // ---------------- Port check ----------------
+  // Ports where an implicit TLS handshake is the norm — used only to pre-tick
+  // the checkbox when you type one of these; you can always override it.
+  var KNOWN_TLS_PORTS = [443, 4433, 8041, 993, 995, 465];
+  reachCustomPort.addEventListener('input', function () {
+    var port = parseInt(reachCustomPort.value, 10);
+    reachCustomTls.checked = KNOWN_TLS_PORTS.indexOf(port) !== -1;
+  });
+
+  async function runReach() {
+    var port = parseInt(reachCustomPort.value, 10);
+    var rail = document.getElementById('reach-custom-rail');
+    var title = document.getElementById('reach-title');
+    var result = document.getElementById('reach-custom-result');
+    clear(result);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      clear(rail); pill(rail, 'bad', 'Enter a port between 1 and 65535');
+      return;
+    }
+    var token = beginRun('reach');
+    clear(rail); pill(rail, 'loading', 'Connecting to port ' + port + ' …');
+
+    try {
+      var tls = reachCustomTls.checked ? '1' : '0';
+      var res = await fetch('/api/portcheck?port=' + port + '&tls=' + tls);
+      var data = await res.json();
+      if (!isCurrent('reach', token)) return;
+      clear(rail);
+      if (!res.ok) { pill(rail, 'bad', data.error || 'Port check failed'); return; }
+      lastData.reach = data;
+
+      title.textContent = data.ip + ' — port ' + data.port;
+      pill(rail, data.open ? 'warn' : 'good', data.open ? 'Open' : 'Closed');
+      result.appendChild(checkRow(
+        data.label + ' (' + data.port + ')',
+        { state: data.open ? 'warn' : 'good', summary: data.summary },
+        data.banner ? [data.banner] : []
+      ));
+    } catch (err) {
+      if (!isCurrent('reach', token)) return;
+      clear(rail); pill(rail, 'bad', 'Network error: ' + err.message);
+    }
+  }
+
+  function runReachAndShare() {
+    updateUrl();
+    runReach();
+  }
+
   var runners = { lookup: runLookup, propagation: runPropagation, email: runEmail, whois: runWhois, ssl: runSsl, dnssec: runDnssec };
 
   function runActive() {
@@ -1226,6 +1306,8 @@
   domainInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runActive(); });
   reverseBtn.addEventListener('click', runReverseAndShare);
   reverseInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReverseAndShare(); });
+  reachCustomBtn.addEventListener('click', runReachAndShare);
+  reachCustomPort.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReachAndShare(); });
 
   // ---------------- Export ----------------
   function csvEscape(val) {
@@ -1330,6 +1412,14 @@
       downloadCsv('dig-dnssec-' + data.domain + '.csv', rows);
       return true;
     },
+    reach: function () {
+      var data = lastData.reach;
+      if (!data) return false;
+      var rows = [['Port', 'Label', 'Open', 'Connect (ms)', 'Banner']];
+      data.forEach(function (d) { rows.push([d.port, d.label, d.open ? 'Yes' : 'No', d.connectMs, d.banner || '']); });
+      downloadCsv('dig-portcheck-' + data[0].ip + '.csv', rows);
+      return true;
+    },
   };
 
   exportBtn.addEventListener('click', function () {
@@ -1394,9 +1484,12 @@
     var domain = params.get('domain');
     var ip = params.get('ip');
     var type = params.get('type');
+    var port = params.get('port');
 
     if (domain) domainInput.value = domain;
     if (ip) reverseInput.value = ip;
+    if (port) reachCustomPort.value = port;
+    if (params.get('tls') === '1') reachCustomTls.checked = true;
 
     if (type) {
       var chip = Array.prototype.find.call(document.querySelectorAll('#type-chips .chip'), function (c) { return c.dataset.type === type.toUpperCase(); });
@@ -1419,6 +1512,7 @@
 
     var name = activePanelName();
     if (name === 'reverse') { if (ip) runReverse(); }
+    else if (name === 'reach') { if (port) runReach(); }
     else if (domain) { runActive(); }
   })();
 </script>
