@@ -165,6 +165,15 @@
     outline: none;
     min-width: 0;
   }
+  /* Plain number entry, no spinner arrows */
+  .command-input[type="number"] {
+    -moz-appearance: textfield;
+  }
+  .command-input[type="number"]::-webkit-outer-spin-button,
+  .command-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
   .command-input::placeholder { color: var(--muted); }
   .run-btn {
     flex: none;
