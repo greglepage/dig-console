@@ -1,5 +1,8 @@
 <html data-theme="dark">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dig console</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -98,6 +101,7 @@
     gap: 10px;
   }
   .wordmark .mark {
+    white-space: nowrap;
     font-family: "IBM Plex Mono", monospace;
     font-weight: 600;
     font-size: 22px;
@@ -238,6 +242,21 @@
     -ms-overflow-style: none;
   }
   .tabs::-webkit-scrollbar { display: none; }
+  /* The scrollbar is hidden, so fade the right edge to hint that more tabs
+     are off-screen when the row is narrower than its contents. */
+  .tabs.overflowing {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .tabs.overflowing.at-end {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .tab-actions {
+    flex: none;
+    display: flex;
+    gap: 6px;
+  }
   .export-btn {
     flex: none;
     font-family: "IBM Plex Sans", sans-serif;
@@ -253,6 +272,17 @@
     white-space: nowrap;
   }
   .export-btn:hover { color: var(--ink); border-color: var(--signal); }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 8px;
+  }
+  .icon-btn svg { width: 14px; height: 14px; display: block; }
+  .icon-btn .icon-ok { display: none; }
+  .icon-btn.done .icon-ok { display: block; }
+  .icon-btn.done .icon-clip { display: none; }
+  .icon-btn.done { color: var(--good); border-color: var(--good); }
+  .icon-btn.fail { color: var(--bad); border-color: var(--bad); }
   .tab {
     font-family: "IBM Plex Sans", sans-serif;
     font-size: 13.5px;
@@ -323,6 +353,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 13px 16px;
     border-bottom: 1px solid var(--line);
     background: var(--surface-2);
@@ -336,7 +367,9 @@
     color: var(--muted);
   }
 
+  .card-head h3 { min-width: 0; }
   .toggle {
+    flex: none;
     display: inline-flex;
     border: 1px solid var(--line);
     border-radius: 7px;
@@ -351,6 +384,7 @@
     border: none;
     padding: 6px 11px;
     cursor: pointer;
+    white-space: nowrap;
   }
   .toggle button + button { border-left: 1px solid var(--line); }
   .toggle button.active { background: var(--signal); color: var(--surface); }
@@ -524,6 +558,34 @@
     font-size: 12px;
     color: var(--muted);
   }
+
+  /* ---------- narrow screens ---------- */
+  @media (max-width: 640px) {
+    .shell { padding: 20px 16px 48px; }
+    .topbar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+    .wordmark { flex-wrap: wrap; row-gap: 2px; }
+    .topbar-right { text-align: left; }
+    .topbar-right br { display: none; }
+    .topbar-right .host::before { content: " · "; color: var(--muted); }
+    .command { padding: 12px; }
+    /* Give the tabs the full width; the action buttons sit on their own row. */
+    .tabs-row { flex-wrap: wrap; row-gap: 10px; }
+    .tabs { flex-basis: 100%; }
+    .tab-actions { order: -1; margin-left: auto; }
+    .tab-actions .export-btn { border-radius: 6px; margin-bottom: 0; }
+    .run-btn { padding: 9px 12px; }
+    .card-head { padding: 11px 12px; }
+    table.records th, table.records td { padding: 9px 12px; }
+    /* Four columns can't share 340px without shredding hostnames, so the
+       record table keeps a readable width and scrolls inside its card. */
+    #view-table table.records { min-width: 560px; }
+    table.records.kv td:first-child { white-space: nowrap; }
+  }
 </style>
 
 <div class="shell">
@@ -535,7 +597,7 @@
     </div>
     <div class="topbar-right">
       live queries, run at request time<br>
-      <span class="host">dig.greglepage.com</span>
+      <span class="host">MrPotatoe.com</span>
     </div>
   </div>
 
@@ -571,8 +633,14 @@
       <button class="tab" data-panel="dnssec">DNSSEC</button>
       <button class="tab" data-panel="reach">Port check</button>
     </div>
-    <button class="export-btn" id="copy-link-btn" title="Copy a link straight to this domain, tab, and record type">Copy link</button>
-    <button class="export-btn" id="export-btn" title="Export the current view as CSV">Export</button>
+    <div class="tab-actions">
+      <button class="export-btn icon-btn" id="copy-btn" title="Copy the current view to the clipboard" aria-label="Copy the current view to the clipboard">
+        <svg class="icon-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>
+        <svg class="icon-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+      </button>
+      <button class="export-btn" id="copy-link-btn" title="Copy a link straight to this domain, tab, and record type">Copy link</button>
+      <button class="export-btn" id="export-btn" title="Export the current view as CSV">Export</button>
+    </div>
   </div>
 
   <!-- ===================== LOOKUP ===================== -->
@@ -754,7 +822,7 @@
     </div>
   </div>
 
-  <footer>dig.greglepage.com — every tab runs live queries at request time. Nothing is cached or pre-baked.</footer>
+  <footer>MrPotatoe.com — every tab runs live queries at request time. Nothing is cached or pre-baked.</footer>
 
 </div>
 
@@ -768,8 +836,9 @@
   var reachCustomBtn = document.getElementById('reach-custom-btn');
   var exportBtn = document.getElementById('export-btn');
   var copyLinkBtn = document.getElementById('copy-link-btn');
+  var copyBtn = document.getElementById('copy-btn');
 
-  // Last successful payload per panel, kept around purely so Export has
+  // Last successful payload per panel, kept around purely so Copy/Export have
   // something to write out without re-querying.
   var lastData = { lookup: null, propagation: null, email: null, reverse: null, whois: null, ssl: null, dnssec: null, reach: null };
 
@@ -805,24 +874,35 @@
   }
 
   function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    // The async API can be missing (non-secure origin) or reject (permissions
+    // policy, embedded frame), so fall back to execCommand in either case.
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(function () { return legacyCopy(text); });
+    }
+    return legacyCopy(text);
+  }
+
+  function legacyCopy(text) {
     return new Promise(function (resolve, reject) {
       var ta = document.createElement('textarea');
       ta.value = text;
+      ta.setAttribute('readonly', '');
       ta.style.position = 'fixed';
       ta.style.opacity = '0';
       document.body.appendChild(ta);
-      ta.focus(); ta.select();
-      try { document.execCommand('copy'); resolve(); }
-      catch (err) { reject(err); }
-      finally { document.body.removeChild(ta); }
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('copy failed'));
     });
   }
 
   function flashButton(btn, message) {
-    var original = btn.textContent;
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+    clearTimeout(btn._flashTimer);
     btn.textContent = message;
-    setTimeout(function () { btn.textContent = original; }, 1600);
+    btn._flashTimer = setTimeout(function () { btn.textContent = btn.dataset.label; }, 1600);
   }
   function el(tag, opts) {
     var node = document.createElement(tag);
@@ -1320,7 +1400,7 @@
   reachCustomBtn.addEventListener('click', runReachAndShare);
   reachCustomPort.addEventListener('keydown', function (e) { if (e.key === 'Enter') runReachAndShare(); });
 
-  // ---------------- Export ----------------
+  // ---------------- Copy / Export ----------------
   function csvEscape(val) {
     val = val === null || val === undefined ? '' : String(val);
     return /[",\n\r]/.test(val) ? '"' + val.replace(/"/g, '""') + '"' : val;
@@ -1339,50 +1419,48 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
-  var exporters = {
+  // Each builder turns a panel's last payload into { filename, rows } — the
+  // single source of truth for both the CSV download and the clipboard copy.
+  var builders = {
     lookup: function () {
       var data = lastData.lookup;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Name', 'Type', 'TTL', 'Value']];
       data.records.forEach(function (r) { rows.push([r.name, r.type, r.ttl, r.data]); });
-      downloadCsv('dig-lookup-' + data.domain + '.csv', rows);
-      return true;
+      return { filename: 'dig-lookup-' + data.domain + '.csv', rows: rows };
     },
     propagation: function () {
       var data = lastData.propagation;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Resolver', 'IP', 'Answer']];
       data.resolvers.forEach(function (r) {
         if (r.error) rows.push([r.label, r.ip, 'Error: ' + r.error]);
         else if (r.answers.length === 0) rows.push([r.label, r.ip, 'No answer']);
         else r.answers.forEach(function (a) { rows.push([r.label, r.ip, a.data]); });
       });
-      downloadCsv('dig-propagation-' + data.domain + '-' + data.type + '.csv', rows);
-      return true;
+      return { filename: 'dig-propagation-' + data.domain + '-' + data.type + '.csv', rows: rows };
     },
     email: function () {
       var data = lastData.email;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Check', 'State', 'Summary', 'Detail']];
       rows.push(['SPF', data.spf.state, data.spf.summary, data.spf.record || '']);
       rows.push(['DKIM', data.dkim.state, data.dkim.summary, data.dkim.selectors.map(function (s) { return s.selector + ' -> ' + s.target; }).join(' | ')]);
       rows.push(['DMARC', data.dmarc.state, data.dmarc.summary, data.dmarc.record || '']);
       rows.push(['MX', data.mx.state, data.mx.summary, data.mx.records.join(' | ')]);
-      downloadCsv('dig-email-' + data.domain + '.csv', rows);
-      return true;
+      return { filename: 'dig-email-' + data.domain + '.csv', rows: rows };
     },
     reverse: function () {
       var data = lastData.reverse;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['IP', 'Result']];
       if (data.found) data.hostnames.forEach(function (h) { rows.push([data.ip, h]); });
       else rows.push([data.ip, data.summary]);
-      downloadCsv('dig-reverse-' + data.ip + '.csv', rows);
-      return true;
+      return { filename: 'dig-reverse-' + data.ip + '.csv', rows: rows };
     },
     whois: function () {
       var data = lastData.whois;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Field', 'Value']];
       if (!data.registered) {
         rows.push(['Status', 'Not registered']);
@@ -1394,12 +1472,11 @@
         if (data.nameServers && data.nameServers.length) rows.push(['Name servers', data.nameServers.join(' | ')]);
         rows.push(['DNSSEC', data.dnssecSigned ? 'Delegation signed' : 'Not signed']);
       }
-      downloadCsv('dig-whois-' + data.domain + '.csv', rows);
-      return true;
+      return { filename: 'dig-whois-' + data.domain + '.csv', rows: rows };
     },
     ssl: function () {
       var data = lastData.ssl;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Field', 'Value']];
       rows.push(['Status', data.summary]);
       if (data.found) {
@@ -1408,36 +1485,81 @@
         rows.push(['Covers', data.sans.join(' | ')]);
         rows.push(['Seen in CT logs', data.recentCertCount]);
       }
-      downloadCsv('dig-ssl-' + data.domain + '.csv', rows);
-      return true;
+      return { filename: 'dig-ssl-' + data.domain + '.csv', rows: rows };
     },
     dnssec: function () {
       var data = lastData.dnssec;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Check', 'Result']];
       rows.push(['Overall', data.summary]);
       rows.push(['Signed', data.signed ? data.dnskeyCount + ' DNSKEY record(s)' : 'No']);
       rows.push(['Delegated', data.delegated ? 'Yes' : 'No']);
       rows.push(['Validating', data.validating ? 'Yes' : 'No']);
       if (data.dsRecords && data.dsRecords.length) rows.push(['DS records', data.dsRecords.join(' | ')]);
-      downloadCsv('dig-dnssec-' + data.domain + '.csv', rows);
-      return true;
+      return { filename: 'dig-dnssec-' + data.domain + '.csv', rows: rows };
     },
     reach: function () {
       var data = lastData.reach;
-      if (!data) return false;
+      if (!data) return null;
       var rows = [['Port', 'Label', 'Open', 'Connect (ms)', 'Banner']];
       data.forEach(function (d) { rows.push([d.port, d.label, d.open ? 'Yes' : 'No', d.connectMs, d.banner || '']); });
-      downloadCsv('dig-portcheck-' + data[0].ip + '.csv', rows);
-      return true;
+      return { filename: 'dig-portcheck-' + data[0].ip + '.csv', rows: rows };
     },
   };
 
+  function buildActive() {
+    var builder = builders[activePanelName()];
+    return builder ? builder() : null;
+  }
+
+  // Tab-separated so a paste lands in separate columns in Excel/Sheets and
+  // still reads cleanly in a ticket or email.
+  function toTsv(rows) {
+    return rows.map(function (row) {
+      return row.map(function (v) {
+        return (v === null || v === undefined ? '' : String(v)).replace(/[\t\r\n]+/g, ' ');
+      }).join('\t');
+    }).join('\n');
+  }
+
+  // The copy button is icon-only, so it reports back by swapping to a check
+  // (success) or tinting red (nothing to copy / failure), with the reason in
+  // its tooltip for anyone who hovers.
+  var copyLabel = copyBtn.getAttribute('title');
+  function flashCopy(state, message) {
+    clearTimeout(copyBtn._flashTimer);
+    copyBtn.classList.remove('done', 'fail');
+    copyBtn.classList.add(state);
+    copyBtn.title = message;
+    copyBtn.setAttribute('aria-label', message);
+    copyBtn._flashTimer = setTimeout(function () {
+      copyBtn.classList.remove('done', 'fail');
+      copyBtn.title = copyLabel;
+      copyBtn.setAttribute('aria-label', copyLabel);
+    }, 1600);
+  }
+
+  copyBtn.addEventListener('click', function () {
+    var text;
+    var rawView = document.querySelector('#panel-' + activePanelName() + ' [data-view-raw]');
+    if (rawView && rawView.style.display !== 'none' && rawView.textContent.trim()) {
+      // In a raw view, copy exactly what's on screen.
+      text = rawView.textContent;
+    } else {
+      var built = buildActive();
+      if (!built) { flashCopy('fail', 'Nothing to copy yet'); return; }
+      text = toTsv(built.rows);
+    }
+    copyText(text).then(
+      function () { flashCopy('done', 'Copied'); },
+      function () { flashCopy('fail', 'Copy failed'); }
+    );
+  });
+
   exportBtn.addEventListener('click', function () {
-    var name = activePanelName();
-    var exporter = exporters[name];
-    var didExport = exporter && exporter();
-    if (!didExport) flashButton(exportBtn, 'Nothing to export yet');
+    var built = buildActive();
+    if (!built) { flashButton(exportBtn, 'Nothing to export yet'); return; }
+    downloadCsv(built.filename, built.rows);
   });
 
   copyLinkBtn.addEventListener('click', function () {
@@ -1447,6 +1569,16 @@
       function () { flashButton(copyLinkBtn, 'Copy failed'); }
     );
   });
+
+  var tabsEl = document.querySelector('.tabs');
+  function updateTabsOverflow() {
+    var overflowing = tabsEl.scrollWidth > tabsEl.clientWidth + 1;
+    tabsEl.classList.toggle('overflowing', overflowing);
+    tabsEl.classList.toggle('at-end', overflowing && tabsEl.scrollLeft + tabsEl.clientWidth >= tabsEl.scrollWidth - 1);
+  }
+  tabsEl.addEventListener('scroll', updateTabsOverflow, { passive: true });
+  window.addEventListener('resize', updateTabsOverflow);
+  updateTabsOverflow();
 
   var chipRow = document.getElementById('type-chips');
   function updateChipVisibility(name) {
@@ -1458,6 +1590,7 @@
       document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
       document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
       tab.classList.add('active');
+      tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
       updateChipVisibility(tab.dataset.panel);
       updateUrl();

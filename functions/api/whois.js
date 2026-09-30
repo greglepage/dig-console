@@ -33,7 +33,7 @@ export async function onRequestGet({ request }) {
     const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
       headers: {
         accept: "application/rdap+json",
-        "user-agent": "dig.greglepage.com (RDAP client; https://dig.greglepage.com)",
+        "user-agent": "MrPotatoe.com (RDAP client; https://MrPotatoe.com)",
       },
     });
 
