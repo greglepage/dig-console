@@ -280,7 +280,7 @@
   .icon-btn svg { width: 14px; height: 14px; display: block; }
   .icon-btn .icon-ok { display: none; }
   .icon-btn.done .icon-ok { display: block; }
-  .icon-btn.done .icon-clip { display: none; }
+  .icon-btn.done .icon-main { display: none; }
   .icon-btn.done { color: var(--good); border-color: var(--good); }
   .icon-btn.fail { color: var(--bad); border-color: var(--bad); }
   .tab {
@@ -573,11 +573,6 @@
     .topbar-right br { display: none; }
     .topbar-right .host::before { content: " · "; color: var(--muted); }
     .command { padding: 12px; }
-    /* Give the tabs the full width; the action buttons sit on their own row. */
-    .tabs-row { flex-wrap: wrap; row-gap: 10px; }
-    .tabs { flex-basis: 100%; }
-    .tab-actions { order: -1; margin-left: auto; }
-    .tab-actions .export-btn { border-radius: 6px; margin-bottom: 0; }
     .run-btn { padding: 9px 12px; }
     .card-head { padding: 11px 12px; }
     table.records th, table.records td { padding: 9px 12px; }
@@ -635,11 +630,17 @@
     </div>
     <div class="tab-actions">
       <button class="export-btn icon-btn" id="copy-btn" title="Copy the current view to the clipboard" aria-label="Copy the current view to the clipboard">
-        <svg class="icon-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>
+        <svg class="icon-main" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>
         <svg class="icon-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
       </button>
-      <button class="export-btn" id="copy-link-btn" title="Copy a link straight to this domain, tab, and record type">Copy link</button>
-      <button class="export-btn" id="export-btn" title="Export the current view as CSV">Export</button>
+      <button class="export-btn icon-btn" id="copy-link-btn" title="Copy a link straight to this domain, tab, and record type" aria-label="Copy a link straight to this domain, tab, and record type">
+        <svg class="icon-main" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <svg class="icon-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+      </button>
+      <button class="export-btn icon-btn" id="export-btn" title="Download the current view as CSV" aria-label="Download the current view as CSV">
+        <svg class="icon-main" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        <svg class="icon-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+      </button>
     </div>
   </div>
 
@@ -898,11 +899,21 @@
     });
   }
 
-  function flashButton(btn, message) {
-    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+  // The action buttons are icon-only, so they report back by swapping to a
+  // check (success) or tinting red (nothing to act on / failure), with the
+  // reason in the tooltip for anyone who hovers.
+  function flashButton(btn, state, message) {
+    if (!btn.dataset.label) btn.dataset.label = btn.title;
     clearTimeout(btn._flashTimer);
-    btn.textContent = message;
-    btn._flashTimer = setTimeout(function () { btn.textContent = btn.dataset.label; }, 1600);
+    btn.classList.remove('done', 'fail');
+    btn.classList.add(state);
+    btn.title = message;
+    btn.setAttribute('aria-label', message);
+    btn._flashTimer = setTimeout(function () {
+      btn.classList.remove('done', 'fail');
+      btn.title = btn.dataset.label;
+      btn.setAttribute('aria-label', btn.dataset.label);
+    }, 1600);
   }
   function el(tag, opts) {
     var node = document.createElement(tag);
@@ -1522,23 +1533,6 @@
     }).join('\n');
   }
 
-  // The copy button is icon-only, so it reports back by swapping to a check
-  // (success) or tinting red (nothing to copy / failure), with the reason in
-  // its tooltip for anyone who hovers.
-  var copyLabel = copyBtn.getAttribute('title');
-  function flashCopy(state, message) {
-    clearTimeout(copyBtn._flashTimer);
-    copyBtn.classList.remove('done', 'fail');
-    copyBtn.classList.add(state);
-    copyBtn.title = message;
-    copyBtn.setAttribute('aria-label', message);
-    copyBtn._flashTimer = setTimeout(function () {
-      copyBtn.classList.remove('done', 'fail');
-      copyBtn.title = copyLabel;
-      copyBtn.setAttribute('aria-label', copyLabel);
-    }, 1600);
-  }
-
   copyBtn.addEventListener('click', function () {
     var text;
     var rawView = document.querySelector('#panel-' + activePanelName() + ' [data-view-raw]');
@@ -1547,26 +1541,27 @@
       text = rawView.textContent;
     } else {
       var built = buildActive();
-      if (!built) { flashCopy('fail', 'Nothing to copy yet'); return; }
+      if (!built) { flashButton(copyBtn, 'fail', 'Nothing to copy yet'); return; }
       text = toTsv(built.rows);
     }
     copyText(text).then(
-      function () { flashCopy('done', 'Copied'); },
-      function () { flashCopy('fail', 'Copy failed'); }
+      function () { flashButton(copyBtn, 'done', 'Copied'); },
+      function () { flashButton(copyBtn, 'fail', 'Copy failed'); }
     );
   });
 
   exportBtn.addEventListener('click', function () {
     var built = buildActive();
-    if (!built) { flashButton(exportBtn, 'Nothing to export yet'); return; }
+    if (!built) { flashButton(exportBtn, 'fail', 'Nothing to export yet'); return; }
     downloadCsv(built.filename, built.rows);
+    flashButton(exportBtn, 'done', 'Downloaded ' + built.filename);
   });
 
   copyLinkBtn.addEventListener('click', function () {
     updateUrl();
     copyText(location.href).then(
-      function () { flashButton(copyLinkBtn, 'Copied!'); },
-      function () { flashButton(copyLinkBtn, 'Copy failed'); }
+      function () { flashButton(copyLinkBtn, 'done', 'Link copied'); },
+      function () { flashButton(copyLinkBtn, 'fail', 'Copy failed'); }
     );
   });
 
