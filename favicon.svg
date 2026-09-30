@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#12181F"/>
-  <path d="M8 10l6 6-6 6" fill="none" stroke="#3FC2B6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="17" y="19" width="8" height="3" rx="1" fill="#3FC2B6"/>
+  <style>
+    .s { fill: none; stroke: #146F67; }
+    .f { fill: #146F67; }
+    @media (prefers-color-scheme: dark) {
+      .s { stroke: #3FC2B6; }
+      .f { fill: #3FC2B6; }
+    }
+  </style>
+  <path class="s" d="M5 7l9 9-9 9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect class="f" x="16" y="21" width="12" height="4" rx="1.5"/>
 </svg>
